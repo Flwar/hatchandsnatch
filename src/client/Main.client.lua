@@ -29,6 +29,7 @@ local ORDER: { { name: string, controller: Controller } } = {
 	{ name = "MenuController", controller = require(Controllers:WaitForChild("MenuController")) :: any },
 	{ name = "FusionController", controller = require(Controllers:WaitForChild("FusionController")) :: any },
 	{ name = "WeatherController", controller = require(Controllers:WaitForChild("WeatherController")) :: any },
+	{ name = "ArenaController", controller = require(Controllers:WaitForChild("ArenaController")) :: any },
 	{ name = "SoundController", controller = require(Controllers:WaitForChild("SoundController")) :: any },
 	{ name = "TutorialController", controller = require(Controllers:WaitForChild("TutorialController")) :: any },
 }
