@@ -3,13 +3,16 @@
 	Popup
 	Centered modal dialogs (offline earnings, confirmations, info). Mobile first:
 	big rounded panel, big buttons (well above the 44 px touch minimum), and only
-	one popup at a time; extra popups wait in a queue.
+	one popup at a time; extra popups wait in a queue. With `creatureId` the popup
+	shows that creature turning slowly above the title (new hybrids, discoveries).
 ]]
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Theme = require(script.Parent:WaitForChild("Theme"))
+local Widgets = require(script.Parent:WaitForChild("Widgets"))
 
 export type Button = {
 	text: string,
@@ -22,6 +25,8 @@ export type Options = {
 	body: string,
 	icon: string?,
 	buttons: { Button }?,
+	creatureId: string?, -- show this creature in 3D above the title
+	titleColor: Color3?,
 }
 
 local Popup = {}
@@ -62,7 +67,9 @@ local function render(options: Options)
 	panel.Name = "Panel"
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.fromScale(0.5, 0.5)
-	panel.Size = UDim2.fromOffset(420, 280)
+	local showcase = options.creatureId ~= nil
+	local top = if showcase then 190 else 0
+	panel.Size = UDim2.fromOffset(420, 280 + top)
 	panel.BackgroundColor3 = Theme.Colors.Panel
 	panel.Parent = shade
 	Theme.corner(panel, 22)
@@ -75,15 +82,31 @@ local function render(options: Options)
 	scale.Scale = 0.7
 	scale.Parent = panel
 
+	local spin: RBXScriptConnection? = nil
+	local creatureId = options.creatureId
+	if creatureId then
+		local viewport = Widgets.creatureViewport(panel, creatureId, false, UDim2.fromOffset(210, 210))
+		viewport.AnchorPoint = Vector2.new(0.5, 0)
+		viewport.Position = UDim2.new(0.5, 0, 0, 8)
+		local model = viewport:FindFirstChildOfClass("Model")
+		if model then
+			local pivot = model:GetPivot()
+			local angle = 0
+			spin = RunService.RenderStepped:Connect(function(dt: number)
+				angle += dt * 0.9
+				model:PivotTo(pivot * CFrame.Angles(0, angle, 0))
+			end)
+		end
+	end
 	local icon = Theme.text("Icon", options.icon or "", panel)
-	icon.Position = UDim2.fromOffset(0, 14)
+	icon.Position = UDim2.fromOffset(0, 14 + top)
 	icon.Size = UDim2.new(1, 0, 0, 52)
 	local title = Theme.text("Title", options.title, panel)
-	title.Position = UDim2.fromOffset(20, 68)
+	title.Position = UDim2.fromOffset(20, 68 + top)
 	title.Size = UDim2.new(1, -40, 0, 38)
-	title.TextColor3 = Theme.Colors.Coin
+	title.TextColor3 = options.titleColor or Theme.Colors.Coin
 	local body = Theme.text("Body", options.body, panel)
-	body.Position = UDim2.fromOffset(24, 110)
+	body.Position = UDim2.fromOffset(24, 110 + top)
 	body.Size = UDim2.new(1, -48, 0, 70)
 	body.TextWrapped = true
 
@@ -105,6 +128,9 @@ local function render(options: Options)
 		local tween = TweenService:Create(scale, TweenInfo.new(0.15), { Scale = 0.7 })
 		tween:Play()
 		tween.Completed:Wait()
+		if spin then
+			spin:Disconnect()
+		end
 		shade:Destroy()
 		showing = false
 		showNext()

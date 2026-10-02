@@ -1,9 +1,12 @@
 --!strict
 --[[
 	Index
-	The discovery book: every creature in the game. Ones you have owned show in full
-	color; the rest are black silhouettes until you discover them. Hybrids you have
-	fused appear in their own section (Milestone 5).
+	The discovery book, in three sections:
+	  * Creatures: all 21 originals. Ones you have owned are in full color; the
+	    rest are black silhouettes until you discover them.
+	  * Secret recipes: the named fusion recipes, silhouettes until you fuse them,
+	    with whoever discovered each one first (across every server).
+	  * Your hybrids: every fallback hybrid you have made.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,53 +22,106 @@ local Profile = require(script.Parent.Parent:WaitForChild("State"):WaitForChild(
 
 local Index = {}
 
--- Extra entries other modules can list after the base creatures (hybrids).
-Index.extraEntries = {} :: { () -> { { id: string, name: string, rarity: string, discovered: boolean } } }
+local CELL = UDim2.fromOffset(128, 164)
 
-local function cell(grid: Instance, order: number, id: string, name: string, rarityName: string, discovered: boolean)
-	local rarity = Rarity.get(rarityName)
+local function section(list: Instance, order: number, title: string): Frame
+	local header = Theme.text("Header", title, list)
+	header.LayoutOrder = order
+	header.Size = UDim2.new(1, 0, 0, 34)
+	header.TextXAlignment = Enum.TextXAlignment.Left
+	header.TextColor3 = Theme.Colors.Coin
+	local grid = Instance.new("Frame")
+	grid.Name = "Section"
+	grid.LayoutOrder = order + 1
+	grid.BackgroundTransparency = 1
+	grid.Size = UDim2.fromScale(1, 0)
+	grid.AutomaticSize = Enum.AutomaticSize.Y
+	grid.Parent = list
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = CELL
+	layout.CellPadding = UDim2.fromOffset(8, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = grid
+	return grid
+end
+
+local function cell(grid: Instance, order: number, id: string, discovered: boolean, subtitle: string?)
+	local def = CreatureData.get(id)
+	if not def then
+		return
+	end
+	local rarity = Rarity.get(def.rarity)
 	local card = Widgets.card(grid, UDim2.new(), if discovered then Theme.Colors.PanelLight else Theme.Colors.Panel)
 	card.LayoutOrder = order
-	Widgets.creatureViewport(card, id, not discovered, UDim2.new(1, -8, 1, -40)).Position = UDim2.fromOffset(4, 4)
-	local label = Theme.text("Name", if discovered then name else "???", card)
+	Widgets.creatureViewport(card, id, not discovered, UDim2.new(1, -8, 1, -56)).Position = UDim2.fromOffset(4, 4)
+	local label = Theme.text("Name", if discovered then def.displayName else "???", card)
 	label.AnchorPoint = Vector2.new(0, 1)
-	label.Position = UDim2.new(0, 4, 1, -4)
-	label.Size = UDim2.new(1, -8, 0, 30)
+	label.Position = UDim2.new(0, 4, 1, -24)
+	label.Size = UDim2.new(1, -8, 0, 28)
 	label.TextColor3 = if discovered then rarity.color else Color3.fromRGB(150, 150, 170)
+	local small = Theme.text("Subtitle", subtitle or def.rarity, card)
+	small.AnchorPoint = Vector2.new(0, 1)
+	small.Position = UDim2.new(0, 4, 1, -4)
+	small.Size = UDim2.new(1, -8, 0, 20)
+	small.TextColor3 = Color3.fromRGB(200, 196, 220)
 end
 
 local function build(content: Frame)
 	local summary = Profile.fetch()
 	local discovered: { [string]: boolean } = {}
+	local firsts: { [string]: string } = {}
 	if summary then
 		for _, id in summary.discoveries do
 			discovered[id] = true
 		end
+		firsts = summary.firsts or {}
 	end
-	local count = 0
+	local list = Widgets.list(content, 8)
+
+	local originals = 0
 	for _, def in CreatureData.List do
 		if discovered[def.id] then
-			count += 1
+			originals += 1
 		end
 	end
-	local header = Theme.text("Header", `Discovered {count} / {#CreatureData.List}`, content)
-	header.Size = UDim2.new(1, 0, 0, 32)
-	local holder = Instance.new("Frame")
-	holder.BackgroundTransparency = 1
-	holder.Position = UDim2.fromOffset(0, 40)
-	holder.Size = UDim2.new(1, 0, 1, -40)
-	holder.Parent = content
-	local grid = Widgets.grid(holder, UDim2.fromOffset(132, 150))
-	local order = 0
-	for _, def in CreatureData.List do
-		order += 1
-		cell(grid, order, def.id, def.displayName, def.rarity, discovered[def.id] == true)
+	local grid = section(list, 1, `Creatures  {originals} / {#CreatureData.List}`)
+	for order, def in CreatureData.List do
+		cell(grid, order, def.id, discovered[def.id] == true)
 	end
-	for _, provider in Index.extraEntries do
-		for _, entry in provider() do
-			order += 1
-			cell(grid, order, entry.id, entry.name, entry.rarity, entry.discovered)
+
+	local recipes = 0
+	for _, def in CreatureData.Hybrids do
+		if discovered[def.id] then
+			recipes += 1
 		end
+	end
+	grid = section(list, 3, `Secret recipes  {recipes} / {#CreatureData.Hybrids}`)
+	for order, def in CreatureData.Hybrids do
+		local first = firsts[def.id]
+		cell(grid, order, def.id, discovered[def.id] == true, if first then `1st: {first}` else "Undiscovered!")
+	end
+
+	local made: { CreatureData.CreatureDef } = {}
+	for id in discovered do
+		local def = CreatureData.get(id)
+		if def and def.hybrid and not def.recipe then
+			table.insert(made, def)
+		end
+	end
+	table.sort(made, function(a, b)
+		local rankA, rankB = Rarity.rank(a.rarity), Rarity.rank(b.rarity)
+		if rankA ~= rankB then
+			return rankA > rankB
+		end
+		return a.displayName < b.displayName
+	end)
+	grid = section(list, 5, `Your hybrids  {#made}`)
+	if #made == 0 then
+		local hint = Theme.text("Hint", "Fuse two adults in your Fusion Machine to make one!", grid)
+		hint.TextWrapped = true
+	end
+	for order, def in made do
+		cell(grid, order, def.id, true)
 	end
 end
 

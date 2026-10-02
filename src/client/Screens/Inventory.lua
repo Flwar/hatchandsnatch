@@ -6,8 +6,6 @@
 	always matches what is standing on your pedestals.
 ]]
 
-local CollectionService = game:GetService("CollectionService")
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -15,52 +13,15 @@ local CreatureData = require(Shared:WaitForChild("CreatureData"))
 local Economy = require(Shared:WaitForChild("Economy"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local Remotes = require(Shared:WaitForChild("Remotes"))
-local Tags = require(Shared:WaitForChild("Tags"))
 local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
 local UI = script.Parent.Parent:WaitForChild("UI")
 local Popup = require(UI:WaitForChild("Popup"))
 local Theme = require(UI:WaitForChild("Theme"))
 local Widgets = require(UI:WaitForChild("Widgets"))
 local Window = require(UI:WaitForChild("Window"))
+local MyCreatures = require(script.Parent.Parent:WaitForChild("State"):WaitForChild("MyCreatures"))
 
 local Inventory = {}
-
-local player = Players.LocalPlayer
-
-type Row = { uid: string, id: string, slot: number, stage: string, locked: boolean, mutation: string? }
-
-local function myCreatures(): { Row }
-	local rows: { Row } = {}
-	for _, model in CollectionService:GetTagged(Tags.Creature) do
-		if model:GetAttribute("OwnerUserId") == player.UserId then
-			local uid, id, slot, stage =
-				model:GetAttribute("Uid"),
-				model:GetAttribute("CreatureId"),
-				model:GetAttribute("Slot"),
-				model:GetAttribute("Stage")
-			local mutation = model:GetAttribute("Mutation")
-			if
-				typeof(uid) == "string"
-				and typeof(id) == "string"
-				and typeof(slot) == "number"
-				and typeof(stage) == "string"
-			then
-				table.insert(rows, {
-					uid = uid,
-					id = id,
-					slot = slot,
-					stage = stage,
-					locked = model:GetAttribute("Locked") == true,
-					mutation = if typeof(mutation) == "string" then mutation else nil,
-				})
-			end
-		end
-	end
-	table.sort(rows, function(a, b)
-		return a.slot < b.slot
-	end)
-	return rows
-end
 
 local function refreshSoon()
 	task.delay(0.5, function()
@@ -71,7 +32,7 @@ local function refreshSoon()
 end
 
 local function build(content: Frame)
-	local rows = myCreatures()
+	local rows = MyCreatures.list()
 	if #rows == 0 then
 		local empty = Theme.text("Empty", "No creatures yet! Buy an egg from the conveyor in the lobby.", content)
 		empty.Size = UDim2.new(1, 0, 0, 60)
