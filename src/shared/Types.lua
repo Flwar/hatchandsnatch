@@ -16,13 +16,19 @@ export type CreatureRecord = {
 	slot: number, -- pedestal slot in the owner's base
 }
 
+export type TrapRecord = {
+	trapType: string, -- "BananaPeel" | "StickyFloor" | "HonkEgg"
+	spot: number, -- trap spot index in the base
+}
+
 export type PlayerData = {
 	version: number,
 	coins: number,
 	padCoins: number, -- income waiting on the collect pad
 	pedestals: number,
 	creatures: { CreatureRecord },
-	traps: { string },
+	traps: { TrapRecord },
+	hasStolen: boolean, -- stealing ends your new-player protection
 	discoveries: { [string]: boolean },
 	trophies: number,
 	totalPlaytime: number, -- seconds

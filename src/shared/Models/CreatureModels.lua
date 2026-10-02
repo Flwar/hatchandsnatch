@@ -17,6 +17,7 @@
 local ModelKit = require(script.Parent.ModelKit)
 local CreatureData = require(script.Parent.Parent.CreatureData)
 local Rarity = require(script.Parent.Parent.Rarity)
+local Types = require(script.Parent.Parent.Types)
 
 type Rig = ModelKit.Rig
 type Palette = ModelKit.Palette
@@ -26,6 +27,7 @@ export type Stage = "Egg" | "Baby" | "Adult"
 export type BuildOptions = {
 	stage: Stage?,
 	origin: CFrame?,
+	mutation: Types.Mutation?, -- weather mutation; changes the creature's colors and materials
 }
 
 type Art = {

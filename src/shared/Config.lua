@@ -72,6 +72,10 @@ Config.LightingTweenSec = 6
 Config.DefaultWalkSpeed = 16
 Config.CarryWalkSpeed = 10
 Config.StealPromptHoldSec = 1.2
+Config.StealPromptDistance = 8
+Config.CarryHeight = 2.6 -- studs above the head where a stolen creature is held
+Config.ZoneCheckSec = 0.4 -- how often the server checks who is standing in which base
+Config.ProtectedNoticeCooldownSec = 4
 Config.NewPlayerShieldMinutes = 60
 Config.NewPlayerShieldValue = 25000 -- base value at which the new-player shield ends early
 Config.RaidValueBracketMin = 0.33
@@ -79,6 +83,7 @@ Config.RaidValueBracketMax = 3
 Config.RevengeWindowSec = 180
 Config.StealCooldownSec = 90
 Config.DroppedCreatureWalkSpeed = 8
+Config.ShieldOpenTransparency = 0.92 -- how faint an open shield looks
 
 ---------------------------------------------------------------------------
 -- Bonk bat
@@ -89,12 +94,16 @@ Config.BatMinFacingDot = 0.35 -- cos of the max angle between look direction and
 Config.BatKnockbackSpeed = 55
 Config.BatKnockbackLift = 22
 Config.BatStunSec = 0.75
+Config.BananaSlipSpeed = 30
+Config.BananaStunSec = 1
 
 ---------------------------------------------------------------------------
 -- Traps
 ---------------------------------------------------------------------------
 Config.MaxTraps = 5
 Config.TrapRearmSec = 20
+Config.TrapTriggerSize = 4.5 -- studs, square trigger around each trap
+Config.HonkHighlightSec = 8
 Config.StickySlowSec = 3
 Config.StickyWalkSpeed = 6
 Config.TrapPrices = {
@@ -146,6 +155,10 @@ Config.RateLimits = {
 	SellCreature = { rate = 2, burst = 3 },
 	UnlockPedestal = { rate = 1, burst = 2 },
 	CollectPad = { rate = 2, burst = 3 },
+	Steal = { rate = 1, burst = 2 },
+	BatSwing = { rate = 3, burst = 3 },
+	SetLocked = { rate = 2, burst = 4 },
+	BuyTrap = { rate = 1, burst = 3 },
 }
 
 ---------------------------------------------------------------------------
@@ -174,6 +187,7 @@ Config.Map = {
 ---------------------------------------------------------------------------
 Config.Debug = {
 	ShowCreatureGallery = true, -- a showroom of every creature model in the lobby
+	StartAtNight = false, -- start the server at night (handy for testing raids)
 }
 
 local function deepFreeze(t: { [any]: any })

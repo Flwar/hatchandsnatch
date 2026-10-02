@@ -61,6 +61,16 @@ local RAIL = Color3.fromRGB(255, 200, 60)
 local BELT = Color3.fromRGB(46, 46, 54)
 
 local BASE_FLOOR_TOP = 0.4 -- base floors sit slightly above the grass
+MapBuilder.FloorHeight = BASE_FLOOR_TOP
+
+-- Where traps go, in base-local studs (x, z). One spot per Config.MaxTraps.
+MapBuilder.TrapSpotOffsets = table.freeze({
+	Vector3.new(-2.5, 0, -30),
+	Vector3.new(2.5, 0, -27),
+	Vector3.new(-2.5, 0, -23.5),
+	Vector3.new(2.5, 0, -20),
+	Vector3.new(0, 0, -16),
+})
 local PLAZA_TOP = 0.5
 
 local function newModel(name: string, parent: Instance): Model
@@ -473,6 +483,26 @@ local function buildBase(index: number, parent: Instance): Model
 	local creatures = Instance.new("Folder")
 	creatures.Name = "Creatures"
 	creatures.Parent = base
+
+	-- Trap spots along the entrance carpet, where raiders walk in.
+	local trapSpots = Instance.new("Folder")
+	trapSpots.Name = "TrapSpots"
+	trapSpots.Parent = base
+	for spot, offset in MapBuilder.TrapSpotOffsets do
+		local marker = part(
+			`TrapSpot{spot}`,
+			"Block",
+			v3(1, 1, 1),
+			at(offset.X, BASE_FLOOR_TOP, offset.Z),
+			Color3.new(1, 1, 1),
+			trapSpots,
+			{
+				transparency = 1,
+				castShadow = false,
+			}
+		)
+		marker:SetAttribute("Spot", spot)
+	end
 
 	local pedestals = Instance.new("Folder")
 	pedestals.Name = "Pedestals"

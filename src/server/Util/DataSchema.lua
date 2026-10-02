@@ -27,6 +27,7 @@ function DataSchema.template(): PlayerData
 		pedestals = Config.StartingPedestals,
 		creatures = {},
 		traps = {},
+		hasStolen = false,
 		discoveries = {},
 		trophies = 0,
 		totalPlaytime = 0,
@@ -81,6 +82,13 @@ function DataSchema.migrate(raw: { [string]: any }): PlayerData
 		end
 	end
 	raw.creatures = creatures
+	local traps = {}
+	for _, trap in raw.traps do
+		if type(trap) == "table" and type(trap.trapType) == "string" and type(trap.spot) == "number" then
+			table.insert(traps, trap)
+		end
+	end
+	raw.traps = traps
 	return raw :: PlayerData
 end
 

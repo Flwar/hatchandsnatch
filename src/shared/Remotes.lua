@@ -21,8 +21,16 @@ local DEFINITIONS: { [string]: Kind } = {
 	-- Server -> client
 	Notify = "Event", -- (message: string, kind: string?) shows a toast
 	OfflineEarnings = "Event", -- (coins: number, secondsAway: number) "While you were away" popup
+	TheftAnnounced = "Event", -- (thief: string, victim: string, rarity: string, creature: string)
+	RevengeStarted = "Event", -- (thiefUserId: number, expiresAt: number) sent to the victim
+	HonkAlert = "Event", -- (raiderUserId: number) a Honk Egg went off in your base
+	BatHit = "Event", -- (position: Vector3) play bonk effects
+	TrapSprung = "Event", -- (trapType: string, position: Vector3) play trap effects
 	-- Client -> server
 	ClientReady = "Event", -- () the client finished loading its UI
+	BatSwing = "Event", -- () swing the equipped bonk bat
+	SetLocked = "Event", -- (uid: string, locked: boolean) lock/unlock one of your creatures
+	BuyTrap = "Event", -- (trapType: string) buy a trap for your base
 }
 Remotes.Definitions = table.freeze(DEFINITIONS)
 
