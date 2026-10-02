@@ -17,6 +17,7 @@
 	      Base1..BaseN (Model)  attributes: BaseIndex, BaseCFrame, OwnerUserId
 	        Spawn (SpawnLocation), Shield, Sign, CollectPad (Model, Pad part), Creatures (Folder)
 	        Pedestals (Folder) Pedestal1..PedestalN (Model, attribute Slot, Socket attachment)
+	        FusionMachine (Model, see World/FusionMachine)
 	    Paths, Scenery (Models), Boundary (Folder of invisible walls)
 
 	Like the creature builders, this module only creates Instances, so tools/preview
@@ -29,6 +30,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local ModelKit = require(Shared:WaitForChild("Models"):WaitForChild("ModelKit"))
 local Props = require(script.Parent.Props)
+local FusionMachine = require(script.Parent.FusionMachine)
 
 local MapBuilder = {}
 
@@ -72,6 +74,9 @@ MapBuilder.TrapSpotOffsets = table.freeze({
 	Vector3.new(0, 0, -16),
 })
 local PLAZA_TOP = 0.5
+
+-- Base-local Z of the Fusion Machine's center (it faces the entrance).
+MapBuilder.FusionMachineZ = 28
 
 local function newModel(name: string, parent: Instance): Model
 	local model = Instance.new("Model")
@@ -511,6 +516,9 @@ local function buildBase(index: number, parent: Instance): Model
 		local offset = MapBuilder.pedestalOffset(slot)
 		buildPedestal(slot, cf * CFrame.new(offset), color, pedestals)
 	end
+
+	-- The Fusion Machine stands against the back wall, behind the last pedestal row.
+	FusionMachine.build(at(0, BASE_FLOOR_TOP, MapBuilder.FusionMachineZ), color, base)
 
 	-- Scenery inside the base.
 	local decor = newModel("Decor", base)

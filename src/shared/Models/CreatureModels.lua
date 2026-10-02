@@ -28,6 +28,7 @@ export type BuildOptions = {
 	stage: Stage?,
 	origin: CFrame?,
 	mutation: Types.Mutation?, -- weather mutation; changes the creature's colors and materials
+	scale: number?, -- uniform size multiplier (the Fusion Machine shows small versions)
 }
 
 -- Where one creature's signature piece can go on another creature (see Hybrids below).
@@ -2260,6 +2261,7 @@ function CreatureModels.build(creatureId: string, options: BuildOptions?): Model
 	local opts: BuildOptions = options or {}
 	local stage: Stage = opts.stage or "Adult"
 	local origin = opts.origin or CFrame.new()
+	local scale = opts.scale or 1
 
 	local model = Instance.new("Model")
 	model.Name = if plan.donor then def.displayName else def.modelName
@@ -2269,21 +2271,22 @@ function CreatureModels.build(creatureId: string, options: BuildOptions?): Model
 
 	local parts: { BasePart } = {}
 	if stage == "Egg" then
-		local rig = ModelKit.newRig(model, origin, 1, art.palette)
+		local rig = ModelKit.newRig(model, origin, scale, art.palette)
 		buildEgg(rig, def, plan)
 		parts = rig.parts
 	elseif stage == "Baby" then
-		local shellRig = ModelKit.newRig(model, origin, 1, art.palette)
+		local shellRig = ModelKit.newRig(model, origin, scale, art.palette)
 		buildShell(shellRig, plan)
-		local lift = art.babyLift or 0.7
-		local rig = ModelKit.newRig(model, origin * CFrame.new(0, lift, 0), BABY_SCALE, art.palette, BABY_EYE_BOOST)
+		local lift = (art.babyLift or 0.7) * scale
+		local rig =
+			ModelKit.newRig(model, origin * CFrame.new(0, lift, 0), BABY_SCALE * scale, art.palette, BABY_EYE_BOOST)
 		buildCreature(rig, plan)
 		parts = shellRig.parts
 		for _, part in rig.parts do
 			table.insert(parts, part)
 		end
 	else
-		local rig = ModelKit.newRig(model, origin, 1, art.palette)
+		local rig = ModelKit.newRig(model, origin, scale, art.palette)
 		buildCreature(rig, plan)
 		parts = rig.parts
 	end
