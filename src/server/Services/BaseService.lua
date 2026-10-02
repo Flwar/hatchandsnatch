@@ -9,6 +9,7 @@
 	If every base is taken, the player waits in the lobby and gets the next free base.
 ]]
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,11 +17,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Types = require(Shared:WaitForChild("Types"))
+local Economy = require(Shared:WaitForChild("Economy"))
+local Tags = require(Shared:WaitForChild("Tags"))
+local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
 local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local DataService = require(script.Parent:WaitForChild("DataService"))
 local MapService = require(script.Parent:WaitForChild("MapService"))
 local MapBuilder = require(script.Parent.Parent:WaitForChild("World"):WaitForChild("MapBuilder"))
 local Net = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("Net"))
+local Character = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("Character"))
+local RateLimiter = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("RateLimiter"))
 
 local BaseService = {}
 
@@ -102,12 +108,95 @@ local function refreshPedestals(base: Model, unlockedCount: number)
 	end
 end
 
--- Re-applies pedestal visuals, e.g. after the owner buys more pedestals.
+local UNLOCK_PROMPT = "UnlockPrompt"
+
+local function clearUnlockPrompt(base: Model)
+	for _, descendant in base:GetDescendants() do
+		if descendant:IsA("ProximityPrompt") and descendant.Name == UNLOCK_PROMPT then
+			descendant:Destroy()
+		end
+	end
+end
+
+local updateUnlockPrompt: (player: Player) -> ()
+
+local function onUnlockTriggered(player: Player, slot: number)
+	if not RateLimiter.allow(player, "UnlockPedestal") then
+		return
+	end
+	local base = BaseService.getBase(player)
+	local data = DataService.get(player)
+	if not base or not data or slot ~= data.pedestals + 1 or data.pedestals >= Config.MaxPedestals then
+		return
+	end
+	local pedestals = base:FindFirstChild("Pedestals")
+	local pedestal = if pedestals then pedestals:FindFirstChild(`Pedestal{slot}`) else nil
+	local pad = if pedestal then pedestal:FindFirstChild("LockedPad") else nil
+	if not pad or not pad:IsA("BasePart") then
+		return
+	end
+	if
+		not Character.isNear(
+			player,
+			(pad :: BasePart).Position,
+			Config.CreaturePromptDistance + Config.ActionDistanceSlack
+		)
+	then
+		return
+	end
+	local cost = Economy.pedestalCost(data.pedestals)
+	if not DataService.trySpend(player, cost) then
+		Net.notify(player, `You need {Format.short(cost - data.coins)} more coins`, "warning")
+		return
+	end
+	data.pedestals += 1
+	refreshPedestals(base, data.pedestals)
+	updateUnlockPrompt(player)
+	Net.notify(player, `Pedestal {slot} unlocked!`, "success")
+end
+
+-- Puts an owner-only "Unlock" prompt on the next locked pedestal of the player's base.
+updateUnlockPrompt = function(player: Player)
+	local base = BaseService.getBase(player)
+	local data = DataService.get(player)
+	if not base then
+		return
+	end
+	clearUnlockPrompt(base)
+	if not data or data.pedestals >= Config.MaxPedestals then
+		return
+	end
+	local slot = data.pedestals + 1
+	local pedestals = base:FindFirstChild("Pedestals")
+	local pedestal = if pedestals then pedestals:FindFirstChild(`Pedestal{slot}`) else nil
+	local pad = if pedestal then pedestal:FindFirstChild("LockedPad") else nil
+	if not pad then
+		return
+	end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = UNLOCK_PROMPT
+	prompt.ActionText = `Unlock for {Format.short(Economy.pedestalCost(data.pedestals))}`
+	prompt.ObjectText = "Pedestal"
+	prompt.HoldDuration = Config.UnlockPromptHoldSec
+	prompt.MaxActivationDistance = Config.CreaturePromptDistance
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute("OwnerUserId", player.UserId)
+	CollectionService:AddTag(prompt, Tags.OwnerOnlyPrompt)
+	prompt.Triggered:Connect(function(triggeredBy: Player)
+		if triggeredBy == player then
+			onUnlockTriggered(triggeredBy, slot)
+		end
+	end)
+	prompt.Parent = pad
+end
+
+-- Re-applies pedestal visuals and the unlock prompt, e.g. after data changes.
 function BaseService.refresh(player: Player)
 	local base = BaseService.getBase(player)
 	local data = DataService.get(player)
 	if base and data then
 		refreshPedestals(base, data.pedestals)
+		updateUnlockPrompt(player)
 	end
 end
 
@@ -156,6 +245,7 @@ local function assign(player: Player, index: number)
 	MapBuilder.setSignText(base, `{player.DisplayName}'s Base`)
 	local data = DataService.get(player)
 	refreshPedestals(base, if data then data.pedestals else Config.StartingPedestals)
+	updateUnlockPrompt(player)
 	local spawn = spawnLocationFor(player)
 	if spawn then
 		player.RespawnLocation = spawn
@@ -224,6 +314,7 @@ local function onPlayerRemoving(player: Player)
 		base:SetAttribute("OwnerUserId", 0)
 		MapBuilder.setSignText(base, "Empty Base")
 		refreshPedestals(base, 0)
+		clearUnlockPrompt(base)
 		BaseService.Released:fire(player, base)
 	end
 	local nextPlayer = table.remove(waiting, 1)

@@ -10,12 +10,12 @@
 	  Map
 	    Ground
 	    Lobby (Model)
-	      Conveyor (Model)  BeltStart / BeltEnd parts mark the egg path
+	      Conveyor (Model)  BeltStart / BeltEnd parts mark the egg path, Eggs (Folder)
 	      LobbySpawn (SpawnLocation)
 	      GalleryAnchor (Part)
 	    Bases (Folder)
 	      Base1..BaseN (Model)  attributes: BaseIndex, BaseCFrame, OwnerUserId
-	        Spawn (SpawnLocation), Shield, Sign, CollectPad (Model, Pad part)
+	        Spawn (SpawnLocation), Shield, Sign, CollectPad (Model, Pad part), Creatures (Folder)
 	        Pedestals (Folder) Pedestal1..PedestalN (Model, attribute Slot, Socket attachment)
 	    Paths, Scenery (Models), Boundary (Folder of invisible walls)
 
@@ -470,6 +470,10 @@ local function buildBase(index: number, parent: Instance): Model
 		material = Enum.Material.Fabric,
 	})
 
+	local creatures = Instance.new("Folder")
+	creatures.Name = "Creatures"
+	creatures.Parent = base
+
 	local pedestals = Instance.new("Folder")
 	pedestals.Name = "Pedestals"
 	pedestals.Parent = base
@@ -573,7 +577,11 @@ local function buildConveyor(parent: Instance): Model
 	-- Markers the conveyor service uses for the egg path (invisible).
 	local markerOpts = { transparency = 1, castShadow = false }
 	part("BeltStart", "Block", v3(1, 1, 1), CFrame.new(-L / 2 + 2, top, 0), Color3.new(1, 1, 1), model, markerOpts)
-	part("BeltEnd", "Block", v3(1, 1, 1), CFrame.new(L / 2 - 1, top, 0), Color3.new(1, 1, 1), model, markerOpts)
+	-- Eggs travel past the end of the belt and drop into the egg hole.
+	part("BeltEnd", "Block", v3(1, 1, 1), CFrame.new(L / 2 + 4.2, top, 0), Color3.new(1, 1, 1), model, markerOpts)
+	local eggs = Instance.new("Folder")
+	eggs.Name = "Eggs"
+	eggs.Parent = model
 
 	-- Egg machine at the start of the belt.
 	local machine = newModel("EggMachine", model)
