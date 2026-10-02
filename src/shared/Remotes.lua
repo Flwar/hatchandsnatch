@@ -28,6 +28,8 @@ local DEFINITIONS: { [string]: Kind } = {
 	TrapSprung = "Event", -- (trapType: string, position: Vector3) play trap effects
 	FusionDone = "Event", -- (hybridId: string, isNewDiscovery: boolean) your hybrid is ready
 	FirstDiscovery = "Event", -- (hybridId: string, discoverer: string) a named recipe was found first
+	ArenaQueued = "Event", -- (waitSec: number) you're in the queue; a bot steps in after waitSec
+	BattleStarted = "Event", -- (battle: BattleReport) play this battle back
 	-- Client -> server
 	ClientReady = "Event", -- () the client finished loading its UI
 	BatSwing = "Event", -- () swing the equipped bonk bat
@@ -38,6 +40,9 @@ local DEFINITIONS: { [string]: Kind } = {
 	SaveSettings = "Event", -- (sfx: boolean, labels: boolean)
 	TutorialAck = "Event", -- () finished reading the last tutorial note
 	StartFusion = "Event", -- (uidA: string, uidB: string) fuse two of your adults
+	FindMatch = "Event", -- (uids: { string }) queue for an arena battle with up to 3 adults
+	CancelMatch = "Event", -- () leave the arena queue
+	GetLeaderboard = "Function", -- () -> LeaderboardSummary
 	GetProfile = "Function", -- () -> ProfileSummary for menus
 }
 Remotes.Definitions = table.freeze(DEFINITIONS)

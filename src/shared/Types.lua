@@ -47,6 +47,8 @@ export type PlayerData = {
 	settings: Settings,
 	tutorialStep: number, -- 1..4 while the tutorial runs, 5 once it is done
 	fusion: FusionJob?, -- the fusion running in this player's machine, if any
+	arenaWins: number,
+	arenaBattles: number,
 }
 
 export type Settings = {
@@ -62,6 +64,17 @@ export type ProfileSummary = {
 	pedestals: number,
 	traps: { TrapRecord },
 	firsts: { [string]: string }, -- named recipe id -> who discovered it first (known so far)
+	arenaWins: number,
+	arenaBattles: number,
+}
+
+-- One row of the arena leaderboard, and what the Arena window asks for.
+export type LeaderboardEntry = { rank: number, userId: number, name: string, trophies: number }
+
+export type LeaderboardSummary = {
+	top: { LeaderboardEntry },
+	trophies: number,
+	rank: number?, -- your place on the board, if you are on it
 }
 
 return {}

@@ -149,7 +149,66 @@ Config.MutationMultipliers = {
 -- Arena
 ---------------------------------------------------------------------------
 Config.ArenaTeamSize = 3
-Config.ArenaWinTrophies = 10
+Config.ArenaWinTrophies = 10 -- for beating another player (losing never costs trophies)
+Config.ArenaBotWinTrophies = 7 -- for beating a bot
+Config.ArenaQueueWaitSec = 6 -- wait this long for a real opponent before a bot steps in
+Config.ArenaCooldownSec = 15 -- between two battles of the same player
+Config.ArenaMatchRange = 150 -- real opponents must be within this many trophies of each other
+Config.ArenaMaxRounds = 25 -- after this the side with more health left wins
+Config.ArenaBaseStats = { hp = 100, attack = 14, speed = 10 } -- a Common creature
+Config.ArenaTierGrowth = 1.35 -- each rarity tier above Common multiplies HP and attack by this
+Config.ArenaSpeedPerTier = 1
+Config.ArenaDamageSpread = 0.15 -- each hit does 85%..115% of the attack stat
+Config.ArenaMutationBonus = {
+	Golden = { hp = 1.15, attack = 1.0, speed = 1.0 },
+	Electric = { hp = 1.0, attack = 1.1, speed = 1.2 },
+	Frozen = { hp = 1.25, attack = 1.0, speed = 0.9 },
+	Rainbow = { hp = 1.15, attack = 1.15, speed = 1.1 },
+}
+-- Bots copy your team's tiers and scale their stats by min + trophies x perTrophy (up to max),
+-- +-jitter. Battles swing hard on small stat gaps: 0.96 wins you ~70%, 1.0 ~50%, 1.02 ~40%.
+Config.ArenaBotStrength = { min = 0.96, max = 1.02, perTrophy = 1 / 20000, jitter = 0.08 }
+-- One special ability per fusion tag. kind: stun / dodge / shield / crit / heal / splash /
+-- burn / first / team / rage / revive / lifesteal / thorns. `value` is a chance or a fraction.
+Config.ArenaAbilities = {
+	slime = { name = "Sticky Slime", kind = "stun", value = 0.15 },
+	cute = { name = "Too Cute", kind = "dodge", value = 0.2 },
+	rock = { name = "Stone Skin", kind = "shield", value = 0.2 },
+	pup = { name = "Loyal Bite", kind = "crit", value = 0.2 },
+	plant = { name = "Photosynthesis", kind = "heal", value = 0.08, every = 2 },
+	shell = { name = "Shell Up", kind = "shield", value = 0.25 },
+	bug = { name = "Swarm", kind = "splash", value = 0.3 },
+	fluffy = { name = "Fluff Cushion", kind = "thorns", value = 0.15 },
+	sweet = { name = "Sugar Rush", kind = "first", value = 4 },
+	bird = { name = "Swoop", kind = "dodge", value = 0.15 },
+	water = { name = "Splash", kind = "splash", value = 0.25 },
+	fizzy = { name = "Fizz Pop", kind = "stun", value = 0.1 },
+	paper = { name = "Paper Cut", kind = "crit", value = 0.25 },
+	fungus = { name = "Spore Cloud", kind = "burn", value = 0.3 },
+	glow = { name = "Dazzle", kind = "dodge", value = 0.15 },
+	food = { name = "Snack Break", kind = "heal", value = 0.1, every = 3 },
+	storm = { name = "Thunderclap", kind = "stun", value = 0.2 },
+	armor = { name = "Plate Armor", kind = "shield", value = 0.3 },
+	party = { name = "Hype", kind = "team", value = 0.1 },
+	fire = { name = "Scorch", kind = "burn", value = 0.4 },
+	dino = { name = "Stomp", kind = "splash", value = 0.35 },
+	space = { name = "Zero-G", kind = "dodge", value = 0.2 },
+	dragon = { name = "Dragon Fury", kind = "rage", value = 0.4 },
+	glitch = { name = "Lag Spike", kind = "stun", value = 0.25 },
+	furniture = { name = "Comfy", kind = "revive", value = 1 },
+}
+Config.ArenaCaps = { dodge = 0.45, shield = 0.6, stun = 0.4 } -- stacking limits
+-- Arena ranks unlock arena-only cosmetics: an overhead title and a trophy in your base.
+Config.ArenaRanks = {
+	{ name = "Bronze", trophies = 50, title = "Bronze Brawler", icon = "🥉" },
+	{ name = "Silver", trophies = 150, title = "Silver Slugger", icon = "🥈" },
+	{ name = "Gold", trophies = 400, title = "Gold Gladiator", icon = "🥇" },
+	{ name = "Diamond", trophies = 1000, title = "Diamond Champion", icon = "💎" },
+}
+Config.LeaderboardStoreName = "HatchAndSnatch_Trophies_v1" -- OrderedDataStore
+Config.LeaderboardRefreshSec = 120
+Config.LeaderboardSize = 10
+Config.LeaderboardWriteSec = 60 -- write a player's trophies at most this often
 
 ---------------------------------------------------------------------------
 -- Data & networking
@@ -176,6 +235,9 @@ Config.RateLimits = {
 	BuyTrap = { rate = 1, burst = 3 },
 	StartFusion = { rate = 0.5, burst = 2 },
 	FusionPrompt = { rate = 1, burst = 2 },
+	FindMatch = { rate = 0.5, burst = 2 },
+	CancelMatch = { rate = 1, burst = 3 },
+	GetLeaderboard = { rate = 0.5, burst = 3 },
 }
 
 ---------------------------------------------------------------------------
