@@ -436,6 +436,61 @@ test("Conveyor markers, egg folder and creature folders exist", function()
 	end
 end)
 
+---------------------------------------------------------------------------
+-- Persistence (Milestone 2)
+---------------------------------------------------------------------------
+
+local Offline = Loader.require("src/shared/Offline")
+local DataSchema = Loader.require("src/server/Util/DataSchema")
+
+test("Offline earnings only count adult time and respect the cap", function()
+	local logout = 1000000
+	-- Blobbit: 1 coin/s, grows up 30 s after planting.
+	local adult = { uid = "a", id = "blobbit", plantedAt = logout - 100, locked = false, slot = 1 }
+	local coins, seconds = Offline.earnings({ adult }, logout, logout + 600, nil)
+	eq(coins, 600, "an adult earns for the whole absence")
+	eq(seconds, 600)
+	local egg = { uid = "b", id = "blobbit", plantedAt = logout, locked = false, slot = 2 }
+	coins = Offline.earnings({ egg }, logout, logout + 600, nil)
+	eq(coins, 570, "an egg only earns after it grows up (30 s)")
+	local capSec = Config.OfflineIncomeCapHours * 3600
+	coins, seconds = Offline.earnings({ adult }, logout, logout + capSec * 3, nil)
+	eq(coins, capSec, "earnings stop at the offline cap")
+	eq(seconds, capSec)
+	coins = Offline.earnings({ adult }, logout, logout + 600, 2)
+	eq(coins, 1200, "multipliers apply")
+	eq((Offline.earnings({ adult }, 0, logout, nil)), 0, "first ever login earns nothing")
+	eq((Offline.earnings({ adult }, logout, logout - 5, nil)), 0, "clock going backwards earns nothing")
+end)
+
+test("DataSchema template and migration repair old or broken saves", function()
+	local fresh = DataSchema.template()
+	eq(fresh.coins, Config.StartingCoins)
+	eq(fresh.pedestals, Config.StartingPedestals)
+	eq(fresh.version, Config.DataSchemaVersion)
+	local old = {
+		coins = "123",
+		pedestals = 999,
+		creatures = {
+			{ uid = "x", id = "blobbit", plantedAt = 5, slot = 2 },
+			{ id = "missing_uid" },
+			"garbage",
+		},
+		discoveries = 7,
+	}
+	local migrated = DataSchema.migrate(old)
+	eq(migrated.coins, 123, "numeric strings become numbers")
+	eq(migrated.pedestals, Config.MaxPedestals, "pedestals clamp to the max")
+	eq(#migrated.creatures, 1, "malformed creature records are dropped")
+	eq(migrated.creatures[1].locked, false, "missing booleans default to false")
+	eq(type(migrated.discoveries), "table", "wrong-typed fields are replaced")
+	eq(migrated.padCoins, 0, "missing fields get their default")
+	eq(migrated.version, Config.DataSchemaVersion)
+	local nan = DataSchema.migrate({ coins = 0 / 0, pedestals = -4 })
+	eq(nan.coins, Config.StartingCoins, "corrupt NaN coins reset to the starting balance")
+	eq(nan.pedestals, Config.StartingPedestals, "pedestals never drop below the start")
+end)
+
 print(`\n{passed} passed, {failed} failed`)
 if failed > 0 then
 	process.exit(1)

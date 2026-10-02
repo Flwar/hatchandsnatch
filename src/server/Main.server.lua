@@ -13,7 +13,6 @@ local Remotes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("R
 Remotes.setup()
 
 local Services = script.Parent:WaitForChild("Services")
-local Net = require(script.Parent:WaitForChild("Util"):WaitForChild("Net"))
 
 type Service = { init: () -> (), start: () -> () }
 
@@ -36,11 +35,6 @@ for _, entry in ORDER do
 		error(`[Main] cannot continue without {entry.name}`)
 	end
 end
-
--- Remote handlers that don't belong to a specific service yet.
-Net.onEvent("ClientReady", {}, function(player: Player)
-	Net.notify(player, `Welcome to Hatch & Snatch, {player.DisplayName}!`, "success")
-end)
 
 for _, entry in ORDER do
 	task.spawn(xpcall, entry.service.start, function(err: any)

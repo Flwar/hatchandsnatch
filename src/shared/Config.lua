@@ -135,6 +135,8 @@ Config.ArenaWinTrophies = 10
 ---------------------------------------------------------------------------
 Config.AutoSaveSec = 120
 Config.DataSchemaVersion = 1
+Config.DataStoreName = "HatchAndSnatch_PlayerData_v1"
+Config.OfflinePopupMinSec = 60 -- don't show the offline popup for shorter absences
 
 -- Token-bucket rate limits per remote, per player. `rate` refills per second, `burst` is the bucket size.
 Config.DefaultRateLimit = { rate = 4, burst = 8 }

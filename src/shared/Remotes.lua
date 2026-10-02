@@ -20,6 +20,7 @@ local Remotes = {}
 local DEFINITIONS: { [string]: Kind } = {
 	-- Server -> client
 	Notify = "Event", -- (message: string, kind: string?) shows a toast
+	OfflineEarnings = "Event", -- (coins: number, secondsAway: number) "While you were away" popup
 	-- Client -> server
 	ClientReady = "Event", -- () the client finished loading its UI
 }
