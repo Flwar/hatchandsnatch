@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Model Preview</title>
+<style>html,body{margin:0;background:#20242c;}</style>
+<script type="importmap">
+{ "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const ROUGH = { SmoothPlastic: 0.42, Plastic: 0.55, Neon: 0.5, Glass: 0.05, ForceField: 0.2, Metal: 0.32, DiamondPlate: 0.35, Foil: 0.25, Ice: 0.15 };
+const METAL = { Metal: 0.75, DiamondPlate: 0.7, Foil: 0.8, CorrodedMetal: 0.5 };
+
+function wedgeGeometry() {
+  const h = 0.5;
+  const A = [-h, -h, -h], B = [h, -h, -h], C = [h, -h, h], D = [-h, -h, h], E = [h, h, h], F = [-h, h, h];
+  const tris = [
+    [A, C, B], [A, D, C],          // bottom
+    [D, E, C], [D, F, E],          // back
+    [A, B, E], [A, E, F],          // slope
+    [A, F, D],                     // left
+    [B, C, E],                     // right
+  ];
+  const pos = [];
+  for (const t of tris) {
+    // The wedge is convex, so make every triangle wind outward (normal away from its center).
+    const [a, b, c] = t.map((v) => new THREE.Vector3(...v));
+    const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+    const centroid = a.clone().add(b).add(c).divideScalar(3).sub(new THREE.Vector3(0, -h / 3, h / 3));
+    const ordered = n.dot(centroid) >= 0 ? [a, b, c] : [a, c, b];
+    for (const v of ordered) pos.push(v.x, v.y, v.z);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  return g;
+}
+const WEDGE = wedgeGeometry();
+const BOX = new THREE.BoxGeometry(1, 1, 1);
+const SPHERE = new THREE.SphereGeometry(0.5, 48, 32);
+const CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 48);
+CYL.rotateZ(Math.PI / 2);
+
+function makeMaterial(p) {
+  const color = new THREE.Color().setRGB(p.color[0], p.color[1], p.color[2], THREE.SRGBColorSpace);
+  const m = p.material;
+  const opts = { color, roughness: ROUGH[m] ?? 0.85, metalness: METAL[m] ?? 0.0 };
+  if (p.reflectance > 0) { opts.roughness = Math.min(opts.roughness, 0.3); opts.metalness = Math.max(opts.metalness, p.reflectance * 0.8); }
+  if (m === "Neon") { opts.emissive = color; opts.emissiveIntensity = 1.1; }
+  let opacity = 1 - p.transparency;
+  if (m === "ForceField") { opts.emissive = color; opts.emissiveIntensity = 0.5; opacity = Math.min(opacity, 0.35); }
+  if (m === "Glass") { opacity = Math.min(opacity, 0.85); }
+  if (opacity < 0.999) { opts.transparent = true; opts.opacity = opacity; opts.depthWrite = opacity > 0.6; }
+  return new THREE.MeshStandardMaterial(opts);
+}
+
+function buildGroup(parts) {
+  const group = new THREE.Group();
+  for (const p of parts) {
+    let geo, sx = p.size[0], sy = p.size[1], sz = p.size[2];
+    let scale = [sx, sy, sz];
+    if (p.shape === "Ball") { const d = Math.min(sx, sy, sz); geo = SPHERE; scale = [d, d, d]; }
+    else if (p.shape === "Ellipsoid") geo = SPHERE;
+    else if (p.shape === "Cylinder") { const d = Math.min(sy, sz); geo = CYL; scale = [sx, d, d]; }
+    else if (p.shape === "Wedge") geo = WEDGE;
+    else geo = BOX;
+    const mesh = new THREE.Mesh(geo, makeMaterial(p));
+    const c = p.cf;
+    const m = new THREE.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+    m.multiply(new THREE.Matrix4().makeScale(scale[0], scale[1], scale[2]));
+    mesh.matrixAutoUpdate = false;
+    mesh.matrix.copy(m);
+    mesh.castShadow = p.transparency < 0.5;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  return group;
+}
+
+function boundsOf(group) {
+  group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(group);
+  return box;
+}
+
+let renderer;
+function getRenderer(w, h) {
+  if (!renderer) {
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.88;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+  }
+  renderer.setSize(w, h, false);
+  return renderer;
+}
+
+function makeScene(r, groundY, groundSize, pedestal) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x9fc4e8);
+  const pmrem = new THREE.PMREMGenerator(r);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.45;
+  scene.add(new THREE.HemisphereLight(0xdfefff, 0x6a6050, 0.7));
+  const sun = new THREE.DirectionalLight(0xfff4e0, 2.6);
+  sun.position.set(-40, 80, -30);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  const s = groundSize / 2;
+  Object.assign(sun.shadow.camera, { left: -s, right: s, top: s, bottom: -s, near: 1, far: 400 });
+  sun.shadow.bias = -0.0005;
+  scene.add(sun);
+  if (pedestal) {
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(pedestal / 2, pedestal / 2 + 0.3, 1.2, 64), new THREE.MeshStandardMaterial({ color: 0x9aa0ab, roughness: 0.8 }));
+    ped.position.y = groundY - 0.6; ped.receiveShadow = true; scene.add(ped);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: 0x7cc46a, roughness: 1 }));
+    floor.rotation.x = -Math.PI / 2; floor.position.y = groundY - 1.2; floor.receiveShadow = true; scene.add(floor);
+  }
+  return { scene, sun };
+}
+
+function renderView(group, opts) {
+  const { w, h, dir, fov = 30, pad = 1.12, pedestal, ortho } = opts;
+  const r = getRenderer(w, h);
+  const box = boundsOf(group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const radius = Math.max(size.length() / 2, 0.5);
+  const { scene, sun } = makeScene(r, 0, Math.max(radius * 3, 20), pedestal);
+  sun.target.position.copy(center); scene.add(sun.target);
+  sun.position.copy(center).add(new THREE.Vector3(-0.5, 1, -0.4).normalize().multiplyScalar(radius * 4 + 40));
+  scene.add(group);
+  let camera;
+  const d = new THREE.Vector3(...dir).normalize();
+  if (ortho) {
+    const half = Math.max(size.x, size.z) / 2 * pad;
+    camera = new THREE.OrthographicCamera(-half * w / h, half * w / h, half, -half, 0.1, 5000);
+    camera.position.copy(center).add(d.clone().multiplyScalar(radius * 3 + 50));
+  } else {
+    camera = new THREE.PerspectiveCamera(fov, w / h, 0.1, 5000);
+    const dist = radius / Math.sin(THREE.MathUtils.degToRad(fov) / 2) * pad;
+    camera.position.copy(center).add(d.clone().multiplyScalar(dist));
+  }
+  camera.lookAt(opts.target ? new THREE.Vector3(...opts.target) : center);
+  r.render(scene, camera);
+  scene.remove(group);
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  canvas.getContext("2d").drawImage(r.domElement, 0, 0, w, h);
+  return canvas;
+}
+
+function sheet(cells, cols, cellW, cellH, title) {
+  const rows = Math.ceil(cells.length / cols);
+  const top = 36;
+  const out = document.createElement("canvas");
+  out.width = cols * cellW; out.height = rows * cellH + top;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#1c1f26"; ctx.fillRect(0, 0, out.width, out.height);
+  ctx.fillStyle = "#fff"; ctx.font = "bold 22px sans-serif"; ctx.fillText(title, 10, 26);
+  cells.forEach((c, i) => {
+    const x = (i % cols) * cellW, y = Math.floor(i / cols) * cellH + top;
+    ctx.drawImage(c.canvas, x, y);
+    ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(x, y, ctx.measureText(c.label).width + 16, 26);
+    ctx.fillStyle = "#fff"; ctx.font = "16px sans-serif"; ctx.fillText(c.label, x + 8, y + 18);
+  });
+  return out.toDataURL("image/png");
+}
+
+window.renderScene = async (scene, variant) => {
+  const groups = scene.models.map((m) => ({ label: m.label, group: buildGroup(m.parts), count: m.parts.length }));
+  if (scene.kind === "creature") {
+    const W = 440, H = 440;
+    const front = [-0.55, 0.42, -1];
+    const cells = [];
+    for (const g of groups) cells.push({ label: `${g.label} (${g.count})`, canvas: renderView(g.group, { w: W, h: H, dir: front, pedestal: 7 }) });
+    const adult = groups[groups.length - 1].group;
+    cells.push({ label: "Adult side", canvas: renderView(adult, { w: W, h: H, dir: [1, 0.25, -0.15], pedestal: 7 }) });
+    cells.push({ label: "Adult back", canvas: renderView(adult, { w: W, h: H, dir: [0.6, 0.5, 1], pedestal: 7 }) });
+    cells.push({ label: "Adult top", canvas: renderView(adult, { w: W, h: H, dir: [0.15, 1.6, -1], pedestal: 7 }) });
+    return sheet(cells, 3, W, H, scene.title);
+  }
+  if (scene.kind === "gallery") {
+    const W = 300, H = 300;
+    const cells = groups.map((g) => ({ label: g.label, canvas: renderView(g.group, { w: W, h: H, dir: [-0.55, 0.42, -1], pedestal: 7 }) }));
+    return sheet(cells, 6, W, H, scene.title);
+  }
+  const g = groups[0].group;
+  if (scene.kind === "map") {
+    const top = renderView(g, { w: 1000, h: 1000, dir: [0.0001, 1, 0.0001], ortho: true, pad: 1.0 });
+    const persp = renderView(g, { w: 1000, h: 1000, dir: [-0.6, 0.7, -1], fov: 40, pad: 0.75 });
+    return sheet([{ label: "Top", canvas: top }, { label: "Perspective", canvas: persp }], 2, 1000, 1000, scene.title);
+  }
+  // base / lobby: several perspective shots
+  const views = scene.kind === "base"
+    ? [[0, 0.7, -1], [-1, 0.6, -0.4], [0.3, 1.8, 0.6], [0.8, 0.35, -1]]
+    : [[0, 0.6, -1], [-1, 0.5, 0.4], [0.2, 1.6, 0.3], [1, 0.3, -0.6]];
+  const cells = views.map((v, i) => ({ label: `View ${i + 1}`, canvas: renderView(g, { w: 760, h: 560, dir: v, fov: 40, pad: i === 3 ? 0.55 : 0.9 }) }));
+  return sheet(cells, 2, 760, 560, scene.title);
+};
+window.ready = true;
+</script>
+</body>
+</html>
