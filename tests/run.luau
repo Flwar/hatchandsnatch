@@ -491,6 +491,70 @@ test("DataSchema template and migration repair old or broken saves", function()
 	eq(nan.pedestals, Config.StartingPedestals, "pedestals never drop below the start")
 end)
 
+---------------------------------------------------------------------------
+-- Night raids (Milestone 3)
+---------------------------------------------------------------------------
+
+local RaidRules = Loader.require("src/shared/RaidRules")
+local TrapModels = Loader.require("src/shared/Models/TrapModels")
+
+test("New-player shield", function()
+	local hour = Config.NewPlayerShieldMinutes * 60
+	expect(RaidRules.isProtected(0, 0, false), "brand new players are protected")
+	expect(RaidRules.isProtected(hour - 1, Config.NewPlayerShieldValue, false), "still protected just under the limits")
+	expect(not RaidRules.isProtected(hour, 0, false), "protection ends after the playtime limit")
+	expect(
+		not RaidRules.isProtected(0, Config.NewPlayerShieldValue + 1, false),
+		"protection ends above the value limit"
+	)
+	expect(not RaidRules.isProtected(0, 0, true), "stealing ends your own protection")
+end)
+
+test("Value bracket", function()
+	expect(RaidRules.inBracket(1000, 1000), "equal bases are in bracket")
+	expect(RaidRules.inBracket(1000, 1000 * Config.RaidValueBracketMax), "upper edge is in bracket")
+	expect(RaidRules.inBracket(1000, 1000 * Config.RaidValueBracketMin), "lower edge is in bracket")
+	expect(not RaidRules.inBracket(1000, 1000 * Config.RaidValueBracketMax + 1), "too rich is out")
+	expect(not RaidRules.inBracket(1000, 1000 * Config.RaidValueBracketMin - 1), "too poor is out")
+	expect(not RaidRules.inBracket(0, 500), "a player with nothing can't raid")
+	expect(not RaidRules.inBracket(500, 0), "an empty base isn't worth raiding")
+end)
+
+test("canRaid combines night, protection, bracket and revenge", function()
+	local base =
+		{ isNight = true, attackerValue = 1000, victimValue = 1200, victimProtected = false, hasRevenge = false }
+	expect((RaidRules.canRaid(base)), "a fair night raid is allowed")
+	local day = table.clone(base)
+	day.isNight = false
+	local allowed, reason = RaidRules.canRaid(day)
+	expect(not allowed and reason ~= nil, "no raids by day")
+	local protected = table.clone(base)
+	protected.victimProtected = true
+	expect(not RaidRules.canRaid(protected), "protected players can't be raided")
+	local rich = table.clone(base)
+	rich.victimValue = 1e9
+	expect(not RaidRules.canRaid(rich), "out-of-bracket raids are blocked")
+	local revengeByDay = table.clone(day)
+	revengeByDay.hasRevenge = true
+	revengeByDay.victimValue = 1e9
+	revengeByDay.victimProtected = true
+	expect((RaidRules.canRaid(revengeByDay)), "revenge works by day and ignores the bracket")
+end)
+
+test("Trap models build and every base has a trap spot per trap slot", function()
+	for _, trapType in { "BananaPeel", "StickyFloor", "HonkEgg" } do
+		local model = TrapModels.build(trapType, roblox.CFrame.new(0, 0, 0))
+		expect(model.PrimaryPart and model.PrimaryPart.Name == "Root", `{trapType} has a Root`)
+		expect(Config.TrapPrices[trapType] and Config.TrapPrices[trapType] > 0, `{trapType} has a price`)
+	end
+	local workspace = roblox.Instance.new("Folder")
+	local map = MapBuilder.build(workspace)
+	for _, base in map:FindFirstChild("Bases"):GetChildren() do
+		local spots = base:FindFirstChild("TrapSpots")
+		eq(#spots:GetChildren(), Config.MaxTraps, `{base.Name} trap spots`)
+	end
+end)
+
 print(`\n{passed} passed, {failed} failed`)
 if failed > 0 then
 	process.exit(1)

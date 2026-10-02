@@ -162,6 +162,15 @@ elseif mode == "sheets" then
 		)
 	end
 	print("wrote creature sheets")
+elseif mode == "traps" then
+	local TrapModels = Loader.require("src/shared/Models/TrapModels")
+	local models = {}
+	for _, trapType in { "BananaPeel", "StickyFloor", "HonkEgg" } do
+		local origin = roblox.CFrame.new()
+		table.insert(models, { label = trapType, parts = exportParts(TrapModels.build(trapType, origin), origin) })
+	end
+	writeScene("traps", { title = "Traps", kind = "gallery", models = models })
+	print("wrote traps")
 elseif mode == "rbxm" then
 	local CreatureData = Loader.require("src/shared/CreatureData")
 	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")

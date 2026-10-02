@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.4.0] - Milestone 3: night and PvP
+
+### Added
+- Day/night cycle (`CycleService`): Day `Config.DayLengthSec`, Night `Config.NightLengthSec`,
+  published as Workspace attributes. Each client tweens its own Lighting (clock, brightness,
+  ambient, Atmosphere, ColorCorrection) and shows "Night in 2:31" / "Sunrise in 0:45".
+  `Config.Debug.StartAtNight` starts the server at night for testing.
+- Shields: open at night and closed by day. A shield is solid only on each player's own
+  machine, decided by the same rules as the server (`ShieldController`). The server checks
+  base zones every `Config.ZoneCheckSec` and teleports out anyone who isn't allowed inside,
+  which also stops noclip exploits. Everyone left in a base gets swept out at sunrise.
+- Raids (`RaidService`):
+  - "Steal" prompts on adult creatures. Carried creatures sit over the raider's head and
+    slow them to `Config.CarryWalkSpeed`.
+  - A stolen creature becomes the raider's only once they reach a free pedestal in their
+    own base. The whole server sees a theft banner.
+  - A dropped creature walks home on its own. Sunrise, leaving or dying returns anything
+    still being carried.
+- Fairness rules (`RaidRules`, shared by server and client):
+  - new-player shield: 60 minutes of playtime, or a base worth more than
+    `Config.NewPlayerShieldValue`;
+  - value bracket (0.33x to 3x);
+  - lock one creature with an owner-only Lock prompt;
+  - revenge window: by day, ignoring the bracket, with a 🎯 marker over the thief;
+  - steal cooldown.
+  - New: stealing ends your own new-player protection, so it can't be used as cover.
+- Bonk bat (`CombatService`): a StarterPack tool. Swings send no arguments, so the server
+  picks the target: the closest player in range and in front of you, at night, inside a
+  base. A hit causes knockback plus a `Config.BatStunSec` stun, with the server briefly
+  owning the target's physics, and makes carriers drop what they carry. It never does damage.
+- Traps (`TrapService`, `TrapModels`): Banana Peel (slip, stun and drop), Sticky Floor (slow)
+  and Honk Egg (warns the owner and highlights the raider). Up to `Config.MaxTraps` per base,
+  on trap spots along the entrance. They re-arm after `Config.TrapRearmSec` and are bought
+  through the validated `BuyTrap` remote.
+- `Speed` helper: several slow-downs can stack, and the slowest one always wins.
+- Effects: "BONK!", "SLIP!", "SPLAT!" and "HONK!" pop-ups with sparkle bursts.
+- Tests for every fairness rule, trap models and trap spots.
+
 ## [0.3.0] - Milestone 2: persistence
 
 ### Added
