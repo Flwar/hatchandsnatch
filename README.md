@@ -34,6 +34,7 @@ Done so far:
 - Milestone 4: menus, tutorial and sounds.
 - Milestone 5: the Fusion Machine, hybrids and the Index.
 - Milestone 6: weather events and mutations.
+- Milestone 7: the creature arena, trophies and the leaderboard.
 
 See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
 
@@ -76,6 +77,9 @@ src/
     Rarity.lua            rarity tiers, colors, weighted roll
     Growth.lua            growth stage math from plantedAt timestamps
     Weather.lua           the four weather events and their mutation rules
+    ArenaStats.lua        arena stats and abilities from rarity, mutation and fusion tags
+    ArenaBattle.lua       the deterministic auto-battle simulator
+    ArenaBots.lua         bot opponents that mirror your team
     Economy.lua           prices and income formulas (pedestal cost, sell value, income/s)
     Tags.lua              CollectionService tag names
     CreatureData.lua      the 21 creatures plus hybrid lookup (named recipes and fallbacks)
@@ -91,16 +95,16 @@ src/
     Services/             DataService, MapService, BaseService, CreatureService,
                           GrowthService, IncomeService, ConveyorService, CycleService,
                           RaidService, CombatService, TrapService, FusionService,
-                          WeatherService, TutorialService
+                          WeatherService, ArenaService, TutorialService
     Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter,
                           Ticker (the single server heartbeat), Character (distance checks)
-    World/                MapBuilder (lobby, conveyor, 8 bases), FusionMachine, Props
+    World/                MapBuilder (lobby, conveyor, 8 bases), FusionMachine, ArenaProps, Props
   client/                 -> StarterPlayer.StarterPlayerScripts
     Main.client.lua       bootstrap for controllers
     Controllers/          one per feature (HUD, creatures, conveyor, cycle, shields, raids,
-                          combat, menu, fusion, weather, sound, tutorial)
-    UI/                   Theme, Widgets, Window, Popup, Banner, Effects, Sounds
-    Screens/              Shop, Inventory, Index, Fusion, Settings windows
+                          combat, menu, fusion, weather, arena, sound, tutorial)
+    UI/                   Theme, Widgets, Window, Popup, Banner, Effects, Sounds, BattleView
+    Screens/              Shop, Inventory, Index, Fusion, Arena, Settings windows
     State/                client-side state: profile summary, settings, raid rules, your creatures
 tests/run.luau            headless tests (Lune)
 tools/preview/            renders models to PNG outside Studio (Lune + three.js)
@@ -159,6 +163,13 @@ First discoveries are saved in the global DataStore named in `Config.DiscoverySt
 They are announced to other servers on the MessagingService topic `Config.DiscoveryTopic`.
 In Studio, turn on **Game Settings → Security → Enable Studio Access to API Services** to
 test them for real. Without it, each server remembers its own first discoveries.
+
+## The arena and its leaderboard
+
+Battles need no second player: when nobody else is queueing, a bot steps in after a few
+seconds. To test PvP, start **Test → Clients and Servers** with 2 players and press "Find
+match" on both. The leaderboard uses the OrderedDataStore named in
+`Config.LeaderboardStoreName`. Without Studio API access it ranks the current server.
 
 ## Testing weather
 

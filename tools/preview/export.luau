@@ -140,6 +140,9 @@ elseif mode == "map" then
 		model.Parent = base
 	end
 	MapBuilder.setSignText(base, "Sam's Base")
+	-- A Gold arena rank's trophy statue, as ArenaService places it.
+	local ArenaProps = Loader.require("src/server/World/ArenaProps")
+	ArenaProps.trophy(pivot * roblox.CFrame.new(-21, MapBuilder.FloorHeight, -29), 3, base)
 	writeScene(
 		"base",
 		{ title = "Base 1", kind = "base", models = { { label = "Base1", parts = exportParts(base, pivot) } } }
@@ -299,6 +302,29 @@ elseif mode == "machine" then
 		models = { { label = "Machine", parts = exportParts(machine, origin), count = countParts(machine) } },
 	})
 	print(`machine: {countParts(machine)} parts`)
+elseif mode == "arena" then
+	-- The lobby arena board with its desk, and the four rank trophies.
+	local ArenaProps = Loader.require("src/server/World/ArenaProps")
+	local folder = roblox.Instance.new("Folder")
+	local origin = roblox.CFrame.new()
+	local board = ArenaProps.board(origin, folder)
+	local models = { { label = "Arena board", parts = exportParts(board, origin), count = countParts(board) } }
+	for rank = 1, 4 do
+		local trophy = ArenaProps.trophy(origin, rank, folder)
+		table.insert(models, { label = `Rank {rank} trophy`, parts = exportParts(trophy, origin) })
+	end
+	writeScene("arena-board", { title = "Arena board", kind = "creature", models = { models[1] } })
+	writeScene("arena-trophies", {
+		title = "Arena trophies",
+		kind = "gallery",
+		columns = 4,
+		models = {
+			models[2],
+			models[3],
+			models[4],
+			models[5],
+		},
+	})
 elseif mode == "traps" then
 	local TrapModels = Loader.require("src/shared/Models/TrapModels")
 	local models = {}

@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.8.0] - Milestone 7: creature arena
+
+### Added
+- 1v1 arena battles (`ArenaService` and the Arena window, opened from the menu or the
+  lobby desk):
+  - Pick up to 3 adults, front fighter first, and find a match.
+  - A real player within `Config.ArenaMatchRange` trophies fights you if one is waiting;
+    otherwise a bot steps in after `Config.ArenaQueueWaitSec`.
+  - Creatures never leave their pedestals: the arena uses copies.
+  - The server checks the team (owned, at home, adults), and both FindMatch and
+    CancelMatch are rate-limited. There is a cooldown between battles.
+- Stats (`ArenaStats`): HP and attack grow by `Config.ArenaTierGrowth` per rarity tier,
+  mutations add bonuses, and every fusion tag gives one special ability (25 abilities in
+  `Config.ArenaAbilities`, such as stun, dodge, shield, crit, heal, splash, burn and
+  revive). Hybrids bring the abilities of both parents.
+- Battles (`ArenaBattle`): a deterministic, seeded auto-battle that the server runs in one
+  go. Fastest acts first; there are crits, dodges, shields, burns, stuns, splash, thorns,
+  rage, revive and team buffs, and a round limit with a health-share tiebreak. The event
+  log is sent to the clients.
+- Bots (`ArenaBots`): they mirror your team's rarity tiers. Their strength grows slowly
+  with your trophies: new players win about 70%, veterans about 40%.
+- Battle playback (`UI/BattleView`):
+  - fighter cards with 3D models and health bars;
+  - attackers lunge and targets shake;
+  - damage, crit, miss, heal and burn numbers, ability callouts and KO stamps;
+  - Skip, and a result screen.
+- Rewards: `Config.ArenaWinTrophies` for a PvP win and `Config.ArenaBotWinTrophies` for a
+  bot win. Losing costs nothing. Trophies are saved, shown in leaderstats, and tracked with
+  arena win and battle counts.
+- Leaderboard:
+  - An OrderedDataStore (`Config.LeaderboardStoreName`) holds the top trophy counts across
+    servers.
+  - Writes are throttled and also happen on leave.
+  - The top 10 is shown on the lobby "ARENA CHAMPIONS" board and in the window's
+    Leaderboard tab.
+  - In Studio without API access it ranks the current server.
+- Arena ranks: Bronze 50, Silver 150, Gold 400, Diamond 1000. They unlock arena-only
+  cosmetics: an overhead title ("🥇 Gold Gladiator") seen by everyone, and a trophy statue
+  in your base.
+- The lobby has an arena board with crossed swords, a trophy, and a "BATTLE!" desk across
+  from the spawn.
+- `Guard.list` for validated array arguments. There's a fifth menu button: Arena.
+- Previews: `export.luau arena`.
+- Tests:
+  - stats and abilities for every fusion tag;
+  - battle determinism and sane logs;
+  - strong teams winning and mirror matches being a coin flip;
+  - bot win rates;
+  - `Guard.list`;
+  - arena data repair.
+
 ## [0.7.0] - Milestone 6: weather mutations
 
 ### Added

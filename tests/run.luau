@@ -491,6 +491,157 @@ test("Every creature builds with every mutation, faces stay normal", function()
 end)
 
 ---------------------------------------------------------------------------
+-- Arena (Milestone 7)
+---------------------------------------------------------------------------
+
+local ArenaStats = Loader.require("src/shared/ArenaStats")
+local ArenaBattle = Loader.require("src/shared/ArenaBattle")
+local ArenaBots = Loader.require("src/shared/ArenaBots")
+local Guard = Loader.require("src/server/Util/Guard")
+
+local KINDS = {
+	stun = true,
+	dodge = true,
+	shield = true,
+	crit = true,
+	heal = true,
+	splash = true,
+	burn = true,
+	first = true,
+	team = true,
+	rage = true,
+	revive = true,
+	lifesteal = true,
+	thorns = true,
+}
+
+test("Arena stats grow with rarity, mutations help, every tag has an ability", function()
+	local previous = 0
+	for _, rarity in Rarity.Order do
+		local def = CreatureData.ofRarity(rarity)[1]
+		local stats = ArenaStats.forCreature(def.id) :: any
+		expect(stats.hp > previous, `{rarity} should have more HP than the tier below`)
+		previous = stats.hp
+	end
+	local plain = ArenaStats.forCreature("blobbit") :: any
+	for mutation, bonus in Config.ArenaMutationBonus :: any do
+		local mutated = ArenaStats.forCreature("blobbit", mutation) :: any
+		expect(ArenaStats.power(mutated) > ArenaStats.power(plain), `{mutation} should make a creature stronger`)
+		eq(mutated.hp, math.floor(Config.ArenaBaseStats.hp * bonus.hp + 0.5), `{mutation} HP`)
+	end
+	for _, def in CreatureData.List do
+		for _, tag in def.fusionTags do
+			local ability = ArenaStats.ability(tag)
+			expect(ability, `fusion tag "{tag}" ({def.id}) has no arena ability`)
+			expect(KINDS[ability.kind], `{tag} has an unknown ability kind {ability.kind}`)
+		end
+	end
+	local hybrid = ArenaStats.forCreature(CreatureData.fuse("toastshark", "blobbit") :: string) :: any
+	expect(#hybrid.abilities > #plain.abilities, "hybrids bring the abilities of both parents")
+	eq(ArenaStats.rank(0), 0, "unranked at 0 trophies")
+	eq(ArenaStats.rank(Config.ArenaRanks[1].trophies), 1, "first rank")
+	eq(ArenaStats.rank(10 ^ 9), #Config.ArenaRanks, "top rank")
+end)
+
+local function randomTeam(rng: any, rarity: string, size: number): { any }
+	local pool = CreatureData.ofRarity(rarity)
+	local team = {}
+	for _ = 1, size do
+		table.insert(team, { id = pool[rng:NextInteger(1, #pool)].id })
+	end
+	return team
+end
+
+test("Battles are deterministic, end, and only report sane numbers", function()
+	local rng = Random.new(21)
+	for i = 1, 150 do
+		local a = randomTeam(rng, Rarity.Order[rng:NextInteger(1, 7)], rng:NextInteger(1, 3))
+		local b = randomTeam(rng, Rarity.Order[rng:NextInteger(1, 7)], rng:NextInteger(1, 3))
+		local first = ArenaBattle.run(a, b, i)
+		local again = ArenaBattle.run(a, b, i)
+		eq(first.winner, again.winner, "same seed, same winner")
+		eq(#first.events, #again.events, "same seed, same log")
+		expect(first.winner == "A" or first.winner == "B", "a battle always has a winner")
+		expect(first.rounds <= Config.ArenaMaxRounds, "battles stop at the round limit")
+		local maxHp = {}
+		for _, fighter in first.fighters do
+			maxHp[fighter.key] = fighter.maxHp
+		end
+		for _, event in first.events do
+			expect(maxHp[event.actor], `event from unknown fighter {event.actor}`)
+			if event.target then
+				expect(maxHp[event.target], `event at unknown fighter {event.target}`)
+			end
+			if event.hp then
+				local who = if event.kind == "attack" or event.kind == "thorns" then event.target else event.actor
+				expect(event.hp >= 0 and event.hp <= maxHp[who], `{event.kind} left {who} at {event.hp} HP`)
+			end
+		end
+	end
+	local big = ArenaBattle.run(randomTeam(rng, "Common", 6), randomTeam(rng, "Common", 6), 1)
+	eq(#big.fighters, Config.ArenaTeamSize * 2, "teams are capped at the team size")
+end)
+
+test("Stronger teams win; mirror matches are a coin flip", function()
+	local rng = Random.new(9)
+	local strong = 0
+	for i = 1, 200 do
+		if ArenaBattle.run(randomTeam(rng, "Mythic", 3), randomTeam(rng, "Common", 3), i).winner == "A" then
+			strong += 1
+		end
+	end
+	expect(strong / 200 > 0.97, `Mythic teams should crush Commons ({strong / 200})`)
+	local wins = 0
+	for i = 1, 600 do
+		local team = randomTeam(rng, "Epic", 3)
+		local mirror = table.clone(team)
+		-- Same team on both sides: only luck and the order of turns decide.
+		if ArenaBattle.run(team, mirror, i).winner == "A" then
+			wins += 1
+		end
+	end
+	expect(math.abs(wins / 600 - 0.5) < 0.1, `mirror matches should be even ({wins / 600})`)
+end)
+
+test("Bots mirror your team and get tougher with trophies", function()
+	local rng = Random.new(4)
+	local team = { { id = "toastshark" }, { id = "blobbit" }, { id = "volcanowl" } }
+	local bot, name = ArenaBots.team(team, 0, rng)
+	eq(#bot, 3, "bots field as many creatures as you")
+	expect(type(name) == "string" and #name > 0, "bots have a name")
+	for i, spec in bot do
+		local mine = CreatureData.get(team[i].id) :: any
+		eq((CreatureData.get(spec.id) :: any).rarity, mine.rarity, "bots copy your rarity tiers")
+	end
+	expect(ArenaBots.strength(2000) > ArenaBots.strength(0), "bots get tougher")
+	eq(ArenaBots.strength(10 ^ 9), Config.ArenaBotStrength.max, "bot strength is capped")
+	local function winRate(trophies: number): number
+		local wins = 0
+		for i = 1, 500 do
+			local mine = randomTeam(rng, Rarity.Order[rng:NextInteger(1, 7)], 3)
+			if ArenaBattle.run(mine, (ArenaBots.team(mine, trophies, rng)), i).winner == "A" then
+				wins += 1
+			end
+		end
+		return wins / 500
+	end
+	local newbie, veteran = winRate(0), winRate(3000)
+	expect(newbie > 0.55 and newbie < 0.85, `new players should usually beat bots ({newbie})`)
+	expect(veteran > 0.25 and veteran < 0.55, `veterans should find bots tough ({veteran})`)
+end)
+
+test("Guard.list only accepts short arrays of valid values", function()
+	local uids = Guard.list(Guard.uid(), 1, 3)
+	expect(uids({ "a", "b" }), "a valid list")
+	expect(not uids({}), "too short")
+	expect(not uids({ "a", "b", "c", "d" }), "too long")
+	expect(not uids("a"), "not a table")
+	expect(not uids({ "a", 5 }), "a bad element")
+	expect(not uids({ [1] = "a", [3] = "b" }), "a hole")
+	expect(not uids({ "a", x = "b" }), "extra keys")
+end)
+
+---------------------------------------------------------------------------
 -- Map
 ---------------------------------------------------------------------------
 
@@ -815,6 +966,10 @@ test("DataSchema template and migration repair old or broken saves", function()
 	eq(settings.settings.labels, true, "missing settings default on")
 	eq(settings.tutorialStep, 5, "tutorial step clamps to done")
 	eq(DataSchema.migrate({ settings = "bad" }).settings.sfx, true, "broken settings are replaced")
+	local arena = DataSchema.migrate({ arenaWins = 5, arenaBattles = 2, trophies = -3 })
+	eq(arena.arenaBattles, 5, "battles are never fewer than wins")
+	eq(arena.trophies, 0, "negative trophies are repaired")
+	eq(fresh.arenaWins, 0, "new players have no arena wins")
 end)
 
 test("DataSchema keeps a fusion in progress and never loses its parents", function()
