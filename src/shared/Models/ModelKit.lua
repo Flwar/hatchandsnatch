@@ -117,6 +117,7 @@ export type Rig = {
 	) -> BasePart,
 	mouth: (spec: MouthSpec) -> (),
 	cheeks: (spec: CheekSpec) -> (),
+	sub: (anchor: CFrame, scale: number, palette: Palette?, pre: CFrame?) -> Rig,
 }
 
 local DEFAULT_MATERIAL = Enum.Material.SmoothPlastic
@@ -289,14 +290,23 @@ end
 -- Rig: scaled, palette-aware builder in a creature's local frame
 ---------------------------------------------------------------------------
 
-function ModelKit.newRig(model: Model, origin: CFrame, scale: number, palette: Palette, eyeBoost: number?): Rig
+-- `place` maps a CFrame in the rig's local units to world space (local positions get
+-- multiplied by `scale` on the way). Sub-rigs chain one placement onto another.
+local function makeRig(
+	model: Model,
+	place: (cf: CFrame) -> CFrame,
+	scale: number,
+	palette: Palette,
+	eyeBoost: number,
+	parts: { BasePart }
+): Rig
 	local rig = {} :: Rig
 	rig.model = model
-	rig.origin = origin
+	rig.origin = place(CFrame.identity)
 	rig.scale = scale
-	rig.eyeBoost = eyeBoost or 1
+	rig.eyeBoost = eyeBoost
 	rig.palette = palette
-	rig.parts = {}
+	rig.parts = parts
 
 	function rig.color(ref: ColorRef): Color3
 		if typeof(ref) == "Color3" then
@@ -308,9 +318,7 @@ function ModelKit.newRig(model: Model, origin: CFrame, scale: number, palette: P
 		return found
 	end
 
-	local function toWorld(cf: CFrame): CFrame
-		return origin * CFrame.new(cf.Position * scale) * cf.Rotation
-	end
+	local toWorld = place
 
 	function rig.add(
 		name: string,
@@ -550,7 +558,27 @@ function ModelKit.newRig(model: Model, origin: CFrame, scale: number, palette: P
 		end
 	end
 
+	-- A child rig for building one piece somewhere else on this rig, e.g. one creature's
+	-- signature trait on another creature's body. `pre` maps the piece's own coordinates
+	-- to the anchor (usually the inverse of where the piece sits on its original owner),
+	-- `anchor` places it in this rig's units and `scale` resizes it around the anchor.
+	-- Parts go into this rig's part list, so finishModel welds them like any other.
+	function rig.sub(anchor: CFrame, subScale: number, subPalette: Palette?, pre: CFrame?): Rig
+		local preFrame = pre or CFrame.identity
+		local function place(cf: CFrame): CFrame
+			local localCf = preFrame * cf
+			return toWorld(anchor * CFrame.new(localCf.Position * subScale) * localCf.Rotation)
+		end
+		return makeRig(model, place, scale * subScale, subPalette or palette, rig.eyeBoost, rig.parts)
+	end
 	return rig
+end
+
+function ModelKit.newRig(model: Model, origin: CFrame, scale: number, palette: Palette, eyeBoost: number?): Rig
+	local function place(cf: CFrame): CFrame
+		return origin * CFrame.new(cf.Position * scale) * cf.Rotation
+	end
+	return makeRig(model, place, scale, palette, eyeBoost or 1, {})
 end
 
 return table.freeze(ModelKit)

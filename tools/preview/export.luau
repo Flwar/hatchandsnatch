@@ -4,6 +4,8 @@
 	for render.mjs. Run from the repo root:
 
 	  lune run tools/preview/export.luau creatures [creatureId ...]
+	  lune run tools/preview/export.luau hybrids [creatureId ...]
+	  lune run tools/preview/export.luau recipes
 	  lune run tools/preview/export.luau map
 	  lune run tools/preview/export.luau rbxm      -- writes build/Creatures.rbxm for Studio
 
@@ -162,6 +164,65 @@ elseif mode == "sheets" then
 		)
 	end
 	print("wrote creature sheets")
+elseif mode == "hybrids" then
+	-- Fallback hybrids on sheets of 20. Pass creature ids to only show pairs with them in it.
+	local CreatureData = Loader.require("src/shared/CreatureData")
+	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")
+	local filter: { [string]: boolean } = {}
+	local hasFilter = false
+	for i = 2, #process.args do
+		filter[process.args[i]] = true
+		hasFilter = true
+	end
+	local ids = {}
+	for i, a in CreatureData.List do
+		for j = i + 1, #CreatureData.List do
+			local b = CreatureData.List[j]
+			local id = CreatureData.fuse(a.id, b.id)
+			if id and string.sub(id, 1, 7) == "fusion:" and (not hasFilter or filter[a.id] or filter[b.id]) then
+				table.insert(ids, id)
+			end
+		end
+	end
+	local origin = roblox.CFrame.new()
+	local page = 0
+	for start = 1, #ids, 20 do
+		page += 1
+		local models = {}
+		for i = start, math.min(start + 19, #ids) do
+			local def = CreatureData.get(ids[i])
+			local model = CreatureModels.build(ids[i], { stage = "Adult", origin = origin })
+			local parents = def.parents
+			table.insert(models, {
+				label = `{def.displayName} ({parents[1]} + {parents[2]})`,
+				parts = exportParts(model, origin),
+			})
+		end
+		writeScene(`hybrids-{page}`, { title = `Fallback hybrids {page}`, kind = "gallery", models = models })
+	end
+	print(`{#ids} fallback hybrids on {page} sheets`)
+elseif mode == "recipes" then
+	-- Every named recipe hybrid at every stage.
+	local CreatureData = Loader.require("src/shared/CreatureData")
+	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")
+	local origin = roblox.CFrame.new()
+	local models = {}
+	for _, def in CreatureData.Hybrids do
+		local model = CreatureModels.build(def.id, { stage = "Adult", origin = origin })
+		table.insert(models, { label = `{def.displayName} - {def.rarity}`, parts = exportParts(model, origin) })
+		print(`{def.id}: adult {countParts(model)} parts`)
+		-- A close-up scene per hybrid too, like the creatures mode.
+		local stages = {}
+		for _, stage in { "Egg", "Baby", "Adult" } do
+			local staged = CreatureModels.build(def.id, { stage = stage, origin = origin })
+			table.insert(stages, { label = stage, parts = exportParts(staged, origin), count = countParts(staged) })
+		end
+		writeScene(
+			`recipe-{def.id}`,
+			{ title = `{def.displayName} ({def.rarity})`, kind = "creature", models = stages }
+		)
+	end
+	writeScene("recipes", { title = "Named recipe hybrids", kind = "gallery", models = models })
 elseif mode == "traps" then
 	local TrapModels = Loader.require("src/shared/Models/TrapModels")
 	local models = {}

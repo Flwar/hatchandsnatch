@@ -175,51 +175,179 @@ test("Higher tiers cost more and earn more", function()
 end)
 
 ---------------------------------------------------------------------------
+-- Fusion (Milestone 5)
+---------------------------------------------------------------------------
+
+local FusionRecipes = Loader.require("src/shared/FusionRecipes")
+local Economy = Loader.require("src/shared/Economy")
+
+-- Every fallback hybrid id (each pair of two different originals without a named recipe).
+local function fallbackIds(): { string }
+	local ids = {}
+	for i, a in CreatureData.List do
+		for j = i + 1, #CreatureData.List do
+			local id = CreatureData.fuse(a.id, CreatureData.List[j].id)
+			if id and not CreatureData.get(id).recipe then
+				table.insert(ids, id)
+			end
+		end
+	end
+	return ids
+end
+
+test("Named recipes use two different originals and resolve in either order", function()
+	expect(#FusionRecipes.List >= 6, "there should be several named recipes")
+	for _, recipe in FusionRecipes.List do
+		local a, b = recipe.parents[1], recipe.parents[2]
+		expect(CreatureData.isOriginal(a) and CreatureData.isOriginal(b), `{recipe.id} needs original parents`)
+		eq(CreatureData.fuse(a, b), recipe.id, `{a} + {b}`)
+		eq(CreatureData.fuse(b, a), recipe.id, `{b} + {a}`)
+		local def = CreatureData.get(recipe.id)
+		expect(def and def.hybrid and def.recipe, `{recipe.id} should be a named hybrid`)
+		expect(CreatureModels.has(recipe.modelName), `{recipe.id} needs a model`)
+		local parentRank =
+			math.max(Rarity.rank((CreatureData.get(a) :: any).rarity), Rarity.rank((CreatureData.get(b) :: any).rarity))
+		expect(Rarity.rank(recipe.rarity) >= parentRank, `{recipe.id} should be at least as rare as its parents`)
+	end
+end)
+
+test("Fusing follows the rules: originals only, two different ones", function()
+	eq(CreatureData.fuse("blobbit", "blobbit"), nil, "the same creature twice")
+	eq(CreatureData.fuse("blobbit", "nope"), nil, "unknown creature")
+	eq(CreatureData.fuse("jellydonut", "blobbit"), nil, "named hybrids can't be fused again")
+	local fallback = CreatureData.fuse("pebblepup", "toastshark") :: string
+	eq(CreatureData.fuse(fallback, "blobbit"), nil, "fallback hybrids can't be fused again")
+	eq(CreatureData.fuse("toastshark", "pebblepup"), fallback, "order doesn't matter")
+	eq(fallback, "fusion:toastshark+pebblepup", "the rarer parent leads")
+	eq(CreatureData.get("fusion:pebblepup+toastshark"), nil, "non-canonical ids are rejected")
+	eq(CreatureData.get("fusion:blobbit+waddlecake"), nil, "pairs with a named recipe have no fallback id")
+	eq(CreatureData.get("fusion:blobbit+blobbit"), nil, "a creature can't fuse with itself")
+	expect(not CreatureData.isOriginal(fallback) and CreatureData.isHybrid(fallback), "fallbacks are hybrids")
+	expect(CreatureData.isValidId(fallback), "fallback ids are valid creature ids")
+end)
+
+test("Fallback hybrids: names, rarity, income, value and tags", function()
+	local id = CreatureData.fuse("toastshark", "blobbit") :: string
+	local def = CreatureData.get(id) :: any
+	local lead, donor = CreatureData.get("toastshark") :: any, CreatureData.get("blobbit") :: any
+	eq(def.displayName, "Toastbit", "lead prefix + donor suffix")
+	eq(
+		(CreatureData.get(CreatureData.fuse("croissaur", "gloomshroom") :: string) :: any).displayName,
+		"Croisshroom",
+		"shared letters are written once"
+	)
+	eq(def.rarity, "Mythic", "Mythic + 1 stays Mythic without a Secret parent")
+	eq(
+		(CreatureData.get(CreatureData.fuse("blobbit", "pebblepup") :: string) :: any).rarity,
+		"Uncommon",
+		"one tier above the lead"
+	)
+	eq(
+		(CreatureData.get(CreatureData.fuse("glitchling", "blobbit") :: string) :: any).rarity,
+		"Secret",
+		"Secret parents stay Secret"
+	)
+	eq(def.baseIncomePerSec, (lead.baseIncomePerSec + donor.baseIncomePerSec) * Config.FusionBonus, "income")
+	eq(def.eggPrice, lead.eggPrice + donor.eggPrice, "value is the sum of both parents")
+	local seen = {}
+	for _, tag in def.fusionTags do
+		expect(not seen[tag], `duplicate tag {tag}`)
+		seen[tag] = true
+	end
+	for _, tag in lead.fusionTags do
+		expect(seen[tag], `missing lead tag {tag}`)
+	end
+	for _, tag in donor.fusionTags do
+		expect(seen[tag], `missing donor tag {tag}`)
+	end
+	expect(CreatureData.get(id) == def, "fallback definitions are cached")
+end)
+
+test("Fusing never creates coins: a hybrid sells for what its parents would", function()
+	for _, id in fallbackIds() do
+		local def = CreatureData.get(id) :: any
+		local a, b = def.parents[1], def.parents[2]
+		local parts = Economy.sellValue(a, nil) + Economy.sellValue(b, nil)
+		expect(math.abs(Economy.sellValue(id, nil) - parts) <= 1, `{id} sells for more than its parents`)
+		expect(
+			Economy.incomePerSec(id, nil) > Economy.incomePerSec(a, nil) + Economy.incomePerSec(b, nil) - 1e-9,
+			`{id} earns less than its parents`
+		)
+	end
+end)
+
+---------------------------------------------------------------------------
 -- Creature models
 ---------------------------------------------------------------------------
 
 local PART_BUDGET = { Egg = 20, Baby = 52, Adult = 36 }
+-- Hybrids carry pieces of two creatures, so they get a little more room.
+local HYBRID_BUDGET = { Egg = 20, Baby = 64, Adult = 48 }
+
+local function checkModel(id: string, stage: string, budget: { [string]: number })
+	local origin = roblox.CFrame.new(10, 2, -5)
+	local model = CreatureModels.build(id, { stage = stage, origin = origin })
+	local root = model.PrimaryPart
+	expect(root and root.Name == "Root", `{id} {stage}: missing Root`)
+	expect(root.Anchored and root.Transparency == 1, `{id} {stage}: Root must be invisible and anchored`)
+	eq(model:GetAttribute("CreatureId"), id, `{id} {stage}: CreatureId attribute`)
+	eq(model:GetAttribute("Stage"), stage, `{id} {stage}: Stage attribute`)
+	-- Pivot sits on the ground under the creature.
+	local pivot = root.CFrame * root.PivotOffset
+	expect((pivot.Position - origin.Position).Magnitude < 1e-3, `{id} {stage}: pivot is off the origin`)
+	local count = 0
+	for _, inst in model:GetDescendants() do
+		if inst:IsA("BasePart") and inst ~= root then
+			count += 1
+			expect(not inst.Anchored, `{id} {stage}: {inst.Name} should be welded, not anchored`)
+			expect(not inst.CanCollide, `{id} {stage}: {inst.Name} should not collide`)
+			local weld = inst:FindFirstChildOfClass("WeldConstraint")
+			expect(weld and weld.Part0 == root, `{id} {stage}: {inst.Name} is not welded to Root`)
+			expect(inst.Size.X > 0 and inst.Size.Y > 0 and inst.Size.Z > 0, `{id} {stage}: {inst.Name} has a zero size`)
+		end
+	end
+	expect(count <= budget[stage], `{id} {stage}: {count} parts exceeds budget {budget[stage]}`)
+	-- Adults must fit on a pedestal (with a little overhang) and nothing sinks deep below it.
+	if stage == "Adult" then
+		local footprint = math.max(root.Size.X, root.Size.Z)
+		expect(footprint <= 9.5, `{id}: footprint {footprint} too large for a pedestal`)
+		local bottom = root.CFrame.Position.Y - root.Size.Y / 2
+		expect(
+			bottom >= origin.Position.Y - 0.3,
+			`{id}: model sinks {origin.Position.Y - bottom} studs below its pivot`
+		)
+	end
+end
 
 test("Every creature builds at every stage within the part budget", function()
 	for _, def in CreatureData.List do
 		for _, stage in { "Egg", "Baby", "Adult" } do
-			local origin = roblox.CFrame.new(10, 2, -5)
-			local model = CreatureModels.build(def.id, { stage = stage, origin = origin })
-			local root = model.PrimaryPart
-			expect(root and root.Name == "Root", `{def.id} {stage}: missing Root`)
-			expect(root.Anchored and root.Transparency == 1, `{def.id} {stage}: Root must be invisible and anchored`)
-			eq(model:GetAttribute("CreatureId"), def.id, `{def.id} {stage}: CreatureId attribute`)
-			eq(model:GetAttribute("Stage"), stage, `{def.id} {stage}: Stage attribute`)
-			-- Pivot sits on the ground under the creature.
-			local pivot = root.CFrame * root.PivotOffset
-			expect((pivot.Position - origin.Position).Magnitude < 1e-3, `{def.id} {stage}: pivot is off the origin`)
-			local count = 0
-			for _, inst in model:GetDescendants() do
-				if inst:IsA("BasePart") and inst ~= root then
-					count += 1
-					expect(not inst.Anchored, `{def.id} {stage}: {inst.Name} should be welded, not anchored`)
-					expect(not inst.CanCollide, `{def.id} {stage}: {inst.Name} should not collide`)
-					local weld = inst:FindFirstChildOfClass("WeldConstraint")
-					expect(weld and weld.Part0 == root, `{def.id} {stage}: {inst.Name} is not welded to Root`)
-					expect(
-						inst.Size.X > 0 and inst.Size.Y > 0 and inst.Size.Z > 0,
-						`{def.id} {stage}: {inst.Name} has a zero size`
-					)
-				end
-			end
-			expect(count <= PART_BUDGET[stage], `{def.id} {stage}: {count} parts exceeds budget {PART_BUDGET[stage]}`)
-			-- Adults must fit on a pedestal (with a little overhang) and nothing sinks deep below it.
-			if stage == "Adult" then
-				local footprint = math.max(root.Size.X, root.Size.Z)
-				expect(footprint <= 9.5, `{def.id}: footprint {footprint} too large for a pedestal`)
-				local bottom = root.CFrame.Position.Y - root.Size.Y / 2
-				expect(
-					bottom >= origin.Position.Y - 0.3,
-					`{def.id}: model sinks {origin.Position.Y - bottom} studs below its pivot`
-				)
-			end
+			checkModel(def.id, stage, PART_BUDGET)
 		end
 	end
+end)
+
+test("Every named and fallback hybrid builds at every stage within its budget", function()
+	for _, def in CreatureData.Hybrids do
+		expect(CreatureModels.has(def.modelName), `no model for {def.modelName}`)
+		for _, stage in { "Egg", "Baby", "Adult" } do
+			checkModel(def.id, stage, HYBRID_BUDGET)
+		end
+	end
+	local ids = fallbackIds()
+	eq(#ids, 210 - #CreatureData.Hybrids, "fallback hybrid count")
+	for _, id in ids do
+		for _, stage in { "Egg", "Baby", "Adult" } do
+			checkModel(id, stage, HYBRID_BUDGET)
+		end
+	end
+end)
+
+test("Fusing an original's model keeps the original unchanged", function()
+	-- Building hybrids must not leak omitted parts or palettes into the originals.
+	local before = #CreatureModels.build("blobbit", nil):GetDescendants()
+	CreatureModels.build(CreatureData.fuse("blobbit", "toastshark") :: string, nil)
+	eq(#CreatureModels.build("blobbit", nil):GetDescendants(), before, "blobbit part count after building a hybrid")
 end)
 
 test("Unknown creature ids are rejected", function()

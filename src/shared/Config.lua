@@ -116,7 +116,11 @@ Config.TrapPrices = {
 -- Fusion
 ---------------------------------------------------------------------------
 Config.FusionTimeSec = 60
-Config.FusionBonus = 1.25
+Config.FusionBonus = 1.25 -- a fallback hybrid earns (a + b) x this
+Config.FusionRecipeBonus = 1.6 -- a named recipe hybrid earns (a + b) x this
+Config.FusionMachineRange = 16 -- studs: how close you must be to use your machine
+Config.DiscoveryStoreName = "HatchAndSnatch_FirstDiscoveries_v1" -- global first discoveries
+Config.DiscoveryTopic = "FirstDiscovery" -- MessagingService topic for cross-server banners
 
 ---------------------------------------------------------------------------
 -- Weather mutations
@@ -162,6 +166,8 @@ Config.RateLimits = {
 	GetProfile = { rate = 2, burst = 4 },
 	TutorialAck = { rate = 0.5, burst = 2 },
 	BuyTrap = { rate = 1, burst = 3 },
+	StartFusion = { rate = 0.5, burst = 2 },
+	FusionPrompt = { rate = 1, burst = 2 },
 }
 
 ---------------------------------------------------------------------------
