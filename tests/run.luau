@@ -297,6 +297,145 @@ test("Pedestal unlock toggles visuals and collision", function()
 	expect(not pedestal:FindFirstChild("Top").CanCollide, "top does not collide when locked")
 end)
 
+---------------------------------------------------------------------------
+-- Growth & economy (Milestone 1)
+---------------------------------------------------------------------------
+
+local Growth = Loader.require("src/shared/Growth")
+local Economy = Loader.require("src/shared/Economy")
+
+test("Growth stages follow the configured fractions", function()
+	local grow, planted = 100, 1000
+	eq(Growth.stage(grow, planted, planted), "Egg")
+	eq(Growth.stage(grow, planted, planted + 29), "Egg")
+	eq(Growth.stage(grow, planted, planted + 30), "Baby")
+	eq(Growth.stage(grow, planted, planted + 99), "Baby")
+	eq(Growth.stage(grow, planted, planted + 100), "Adult")
+	eq(Growth.stage(grow, planted, planted + 1e6), "Adult", "offline growth keeps going")
+	eq(Growth.progress(grow, planted, planted - 50), 0, "clock skew never goes negative")
+	eq(Growth.secondsToNextStage(grow, planted, planted + 10), 20)
+	eq(Growth.secondsToNextStage(grow, planted, planted + 40), 60)
+	eq(Growth.secondsToNextStage(grow, planted, planted + 100), nil)
+end)
+
+test("Economy formulas", function()
+	eq(Economy.pedestalCost(Config.StartingPedestals), Config.PedestalBaseCost, "7th pedestal price")
+	expect(
+		Economy.pedestalCost(Config.StartingPedestals + 1) > Economy.pedestalCost(Config.StartingPedestals),
+		"pedestals get pricier"
+	)
+	eq(Economy.incomePerSec("blobbit", nil), 1)
+	eq(Economy.incomePerSec("blobbit", "Rainbow"), 5)
+	eq(Economy.incomePerSec("not_real", nil), 0)
+	eq(Economy.sellValue("pebblepup", nil), math.floor(40 * Config.SellRefundFraction))
+	expect(Economy.sellValue("blobbit", nil) < 25, "selling never refunds the full price")
+end)
+
+-- Plays the core loop with the real config and data: a fresh player buys the best egg
+-- they can afford from the belt, collects their pad every 15 s, and swaps a weaker
+-- creature for a better egg when every pedestal is full. Milestone 1 is "done" when
+-- a new player can reach a Rare through normal play.
+local function simulate(seed: number): number?
+	local rng = Random.new(seed)
+	local workspace = roblox.Instance.new("Folder")
+	local conveyor = MapBuilder.build(workspace):FindFirstChild("Lobby"):FindFirstChild("Conveyor")
+	local beltLength = (
+		conveyor:FindFirstChild("BeltEnd").CFrame.Position - conveyor:FindFirstChild("BeltStart").CFrame.Position
+	).Magnitude
+	local beltSeconds = beltLength / Config.ConveyorSpeed
+	local coins, pad = Config.StartingCoins, 0
+	local owned: { { id: string, planted: number } } = {}
+	local belt: { { id: string, spawned: number } } = {}
+	local rareRank = Rarity.rank("Rare")
+	for t = 0, 3600 do
+		if t % Config.ConveyorSpawnInterval == 0 then
+			local options = CreatureData.ofRarity(Rarity.roll(rng))
+			table.insert(belt, { id = options[rng:NextInteger(1, #options)].id, spawned = t })
+		end
+		for i = #belt, 1, -1 do
+			if t - belt[i].spawned >= beltSeconds then
+				table.remove(belt, i)
+			end
+		end
+		for _, creature in owned do
+			local def = CreatureData.get(creature.id)
+			if Growth.stage(def.growTimeSec, creature.planted, t) == "Adult" then
+				pad += Economy.incomePerSec(creature.id, nil)
+			end
+		end
+		if t % 15 == 0 then
+			coins += math.floor(pad)
+			pad -= math.floor(pad)
+		end
+		local bestIndex, bestPrice = nil, -1
+		for i, egg in belt do
+			local price = CreatureData.get(egg.id).eggPrice
+			if price <= coins and price > bestPrice then
+				bestIndex, bestPrice = i, price
+			end
+		end
+		if bestIndex then
+			local egg = belt[bestIndex]
+			local def = CreatureData.get(egg.id)
+			local bought = false
+			if #owned < Config.StartingPedestals then
+				bought = true
+			else
+				local worstIndex, worstPrice = 1, math.huge
+				for i, creature in owned do
+					local price = CreatureData.get(creature.id).eggPrice
+					if price < worstPrice then
+						worstIndex, worstPrice = i, price
+					end
+				end
+				local worst = owned[worstIndex]
+				if Rarity.rank(def.rarity) > Rarity.rank(CreatureData.get(worst.id).rarity) then
+					coins += Economy.sellValue(worst.id, nil)
+					table.remove(owned, worstIndex)
+					bought = coins >= def.eggPrice
+				end
+			end
+			if bought then
+				coins -= def.eggPrice
+				table.insert(owned, { id = egg.id, planted = t })
+				table.remove(belt, bestIndex)
+				if Rarity.rank(def.rarity) >= rareRank then
+					return t
+				end
+			end
+		end
+	end
+	return nil
+end
+
+test("A new player can reach a Rare creature through normal play", function()
+	local times = {}
+	for seed = 1, 60 do
+		local reached = simulate(seed)
+		expect(reached, `seed {seed}: never reached a Rare within an hour`)
+		table.insert(times, reached)
+	end
+	table.sort(times)
+	local median = times[#times // 2]
+	local worst = times[#times]
+	expect(median <= 10 * 60, `median time to first Rare is {median}s (target: under 10 minutes)`)
+	expect(worst <= 20 * 60, `slowest time to first Rare is {worst}s (target: under 20 minutes)`)
+	print(`      first Rare: median {Format.clock(median)}, slowest {Format.clock(worst)} over {#times} runs`)
+end)
+
+test("Conveyor markers, egg folder and creature folders exist", function()
+	local workspace = roblox.Instance.new("Folder")
+	local map = MapBuilder.build(workspace)
+	local conveyor = map:FindFirstChild("Lobby"):FindFirstChild("Conveyor")
+	expect(conveyor:FindFirstChild("Eggs"), "missing Eggs folder")
+	local startX = conveyor:FindFirstChild("BeltStart").CFrame.Position.X
+	local endX = conveyor:FindFirstChild("BeltEnd").CFrame.Position.X
+	expect(endX - startX > Config.Map.ConveyorLength - 5, "belt path too short")
+	for _, base in map:FindFirstChild("Bases"):GetChildren() do
+		expect(base:FindFirstChild("Creatures"), `{base.Name} missing Creatures folder`)
+	end
+end)
+
 print(`\n{passed} passed, {failed} failed`)
 if failed > 0 then
 	process.exit(1)
