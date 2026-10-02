@@ -211,6 +211,60 @@ Config.LeaderboardSize = 10
 Config.LeaderboardWriteSec = 60 -- write a player's trophies at most this often
 
 ---------------------------------------------------------------------------
+-- Monetization. Create the passes and products on the Roblox website (Creator
+-- Dashboard) and paste their ids here; an id of 0 shows "coming soon" in the Shop.
+-- Rules: nothing random for Robux, no advantage in raids or the arena, no pressure.
+---------------------------------------------------------------------------
+Config.GamePasses = {
+	DoubleIncome = {
+		id = 0,
+		name = "2x Income",
+		icon = "💰",
+		description = "Every creature earns twice as many coins, even while you're offline.",
+	},
+	ExtraPedestals = {
+		id = 0,
+		name = "+6 Pedestals",
+		icon = "🏛️",
+		description = "Unlocks 6 more pedestals for free right away (a base holds 24).",
+	},
+	VipBase = {
+		id = 0,
+		name = "VIP Base",
+		icon = "👑",
+		description = "A golden VIP look for your base: crown, gold trim and a red carpet. Looks only.",
+	},
+	FastFusion = {
+		id = 0,
+		name = "Faster Fusion",
+		icon = "⚡",
+		description = "Your Fusion Machine works twice as fast.",
+	},
+}
+Config.PassIncomeMultiplier = 2
+Config.PassBonusPedestals = 6
+Config.PassFusionSpeed = 0.5 -- fusion time multiplier with Faster Fusion
+
+-- Coin packs give minutes of your current income (at least `minimum`), so they stay
+-- useful at every stage. The exact amount is shown before buying.
+Config.DevProducts = {
+	CoinsSmall = { id = 0, kind = "coins", name = "Coin Pouch", icon = "🪙", minutes = 15, minimum = 2500 },
+	CoinsMedium = { id = 0, kind = "coins", name = "Coin Sack", icon = "💰", minutes = 60, minimum = 10000 },
+	CoinsLarge = { id = 0, kind = "coins", name = "Coin Vault", icon = "🏦", minutes = 240, minimum = 50000 },
+	GrowToken = {
+		id = 0,
+		kind = "growToken",
+		name = "Instant Grow",
+		icon = "🌱",
+		description = "Grow one egg or baby into an adult right away.",
+	},
+	BatGolden = { id = 0, kind = "batSkin", skin = "Golden", name = "Golden Bat", icon = "🏆" },
+	BatCandy = { id = 0, kind = "batSkin", skin = "Candy", name = "Candy Bat", icon = "🍭" },
+	BatGalaxy = { id = 0, kind = "batSkin", skin = "Galaxy", name = "Galaxy Bat", icon = "🌌" },
+}
+Config.ReceiptHistorySize = 50 -- purchase ids remembered per player (idempotent receipts)
+
+---------------------------------------------------------------------------
 -- Data & networking
 ---------------------------------------------------------------------------
 Config.AutoSaveSec = 120
@@ -238,6 +292,8 @@ Config.RateLimits = {
 	FindMatch = { rate = 0.5, burst = 2 },
 	CancelMatch = { rate = 1, burst = 3 },
 	GetLeaderboard = { rate = 0.5, burst = 3 },
+	UseGrowToken = { rate = 1, burst = 2 },
+	EquipBatSkin = { rate = 1, burst = 3 },
 }
 
 ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ local StarterPack = game:GetService("StarterPack")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
+local Products = require(Shared:WaitForChild("Products"))
 local ModelKit = require(Shared:WaitForChild("Models"):WaitForChild("ModelKit"))
 local MapService = require(script.Parent:WaitForChild("MapService"))
 local CycleService = require(script.Parent:WaitForChild("CycleService"))
@@ -195,6 +196,27 @@ local function onSwing(attacker: Player)
 		Config.BatStunSec
 	)
 	Net.fireAll("BatHit", targetRoot.Position)
+end
+
+-- Paints a player's bat with their equipped cosmetic skin (shared/Products.BatSkins).
+-- Skins are looks only: every bat bonks exactly the same.
+function CombatService.applySkin(player: Player, skinName: string)
+	local skin = Products.BatSkins[skinName] or Products.BatSkins.Classic
+	local containers: { Instance? } = { player:FindFirstChildOfClass("Backpack"), player.Character }
+	for _, container in containers do
+		local tool = if container then container:FindFirstChild(BAT_NAME) else nil
+		if tool then
+			for _, part in tool:GetDescendants() do
+				local look = if part:IsA("BasePart") then skin.parts[part.Name] else nil
+				if look then
+					local basePart = part :: BasePart
+					basePart.Color = look.color
+					basePart.Material = look.material or Enum.Material.SmoothPlastic
+					basePart.Reflectance = look.reflectance or 0
+				end
+			end
+		end
+	end
 end
 
 function CombatService.init()

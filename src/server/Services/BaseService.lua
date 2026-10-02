@@ -160,7 +160,7 @@ function BaseService.buyPedestal(player: Player): boolean
 		Net.notify(player, "All pedestals are already unlocked!", "info")
 		return false
 	end
-	local cost = Economy.pedestalCost(data.pedestals)
+	local cost = Economy.pedestalCost(data.pedestals - data.bonusPedestals)
 	if not DataService.trySpend(player, cost) then
 		Net.notify(player, `You need {Format.short(cost - data.coins)} more coins`, "warning")
 		return false
@@ -193,7 +193,7 @@ updateUnlockPrompt = function(player: Player)
 	end
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = UNLOCK_PROMPT
-	prompt.ActionText = `Unlock for {Format.short(Economy.pedestalCost(data.pedestals))}`
+	prompt.ActionText = `Unlock for {Format.short(Economy.pedestalCost(data.pedestals - data.bonusPedestals))}`
 	prompt.ObjectText = "Pedestal"
 	prompt.HoldDuration = Config.UnlockPromptHoldSec
 	prompt.MaxActivationDistance = Config.CreaturePromptDistance

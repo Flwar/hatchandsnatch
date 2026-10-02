@@ -98,7 +98,7 @@ local function baseTab(body: Frame)
 		done.Size = UDim2.new(1, -32, 0, 36)
 		return
 	end
-	local cost = Economy.pedestalCost(owned)
+	local cost = Economy.pedestalCost(owned - (if summary then summary.bonusPedestals or 0 else 0))
 	local note = Theme.text("Note", "More pedestals = more creatures earning coins.", card)
 	note.Position = UDim2.fromOffset(16, 52)
 	note.Size = UDim2.new(1, -32, 0, 28)

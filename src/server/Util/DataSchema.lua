@@ -38,6 +38,10 @@ function DataSchema.template(): PlayerData
 		tutorialStep = 1,
 		arenaWins = 0,
 		arenaBattles = 0,
+		growTokens = 0,
+		batSkins = {},
+		equippedBat = "Classic",
+		bonusPedestals = 0,
 	}
 end
 
@@ -68,6 +72,25 @@ function DataSchema.migrate(raw: { [string]: any }): PlayerData
 	raw.trophies = math.max(0, math.floor(number(raw.trophies, 0)))
 	raw.arenaWins = math.max(0, math.floor(number(raw.arenaWins, 0)))
 	raw.arenaBattles = math.max(raw.arenaWins, math.floor(number(raw.arenaBattles, 0)))
+	raw.growTokens = math.max(0, math.floor(number(raw.growTokens, 0)))
+	-- Receipts used to be a map of id -> true; keep only a short list of the latest ids.
+	local receipts = {}
+	for key, value in raw.receipts do
+		if type(key) == "number" and type(value) == "string" then
+			table.insert(receipts, value)
+		elseif type(key) == "string" and value == true then
+			table.insert(receipts, key)
+		end
+	end
+	while #receipts > Config.ReceiptHistorySize do
+		table.remove(receipts, 1)
+	end
+	raw.receipts = receipts
+	if
+		type(raw.equippedBat) ~= "string" or (raw.equippedBat ~= "Classic" and raw.batSkins[raw.equippedBat] ~= true)
+	then
+		raw.equippedBat = "Classic"
+	end
 	raw.tutorialStep = math.clamp(math.floor(number(raw.tutorialStep, 1)), 1, 5)
 	raw.settings.sfx = raw.settings.sfx ~= false
 	raw.settings.labels = raw.settings.labels ~= false
@@ -75,6 +98,11 @@ function DataSchema.migrate(raw: { [string]: any }): PlayerData
 		math.floor(number(raw.pedestals, Config.StartingPedestals)),
 		Config.StartingPedestals,
 		Config.MaxPedestals
+	)
+	raw.bonusPedestals = math.clamp(
+		math.floor(number(raw.bonusPedestals, 0)),
+		0,
+		math.min(Config.PassBonusPedestals, raw.pedestals - Config.StartingPedestals)
 	)
 	-- Drop malformed creature records rather than crash on them later.
 	local creatures = {}

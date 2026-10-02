@@ -42,13 +42,17 @@ export type PlayerData = {
 	trophies: number,
 	totalPlaytime: number, -- seconds
 	lastLogout: number, -- os.time(), 0 if never
-	receipts: { [string]: boolean }, -- processed purchase ids
+	receipts: { string }, -- the latest processed purchase ids (idempotent ProcessReceipt)
 	funnel: { [string]: boolean }, -- analytics milestones already logged
 	settings: Settings,
 	tutorialStep: number, -- 1..4 while the tutorial runs, 5 once it is done
 	fusion: FusionJob?, -- the fusion running in this player's machine, if any
 	arenaWins: number,
 	arenaBattles: number,
+	growTokens: number, -- Instant Grow tokens bought and not used yet
+	batSkins: { [string]: boolean }, -- cosmetic bat skins owned
+	equippedBat: string, -- "Classic" or an owned skin
+	bonusPedestals: number, -- pedestals given by the +6 Pedestals pass (not bought with coins)
 }
 
 export type Settings = {
@@ -66,6 +70,7 @@ export type ProfileSummary = {
 	firsts: { [string]: string }, -- named recipe id -> who discovered it first (known so far)
 	arenaWins: number,
 	arenaBattles: number,
+	bonusPedestals: number,
 }
 
 -- One row of the arena leaderboard, and what the Arena window asks for.

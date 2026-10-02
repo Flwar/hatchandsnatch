@@ -26,6 +26,10 @@ local IncomeService = {}
 
 -- Fired as (player, amount) whenever a player collects their pad.
 IncomeService.Collected = Signal.new()
+-- Hook for game passes: multiplies a player's income (MonetizationService sets it).
+IncomeService.multiplier = function(_player: Player): number
+	return 1
+end
 
 local function padOf(base: Model): BasePart?
 	local padModel = base:FindFirstChild("CollectPad")
@@ -97,7 +101,7 @@ local function tick(dt: number)
 	for _, player in Players:GetPlayers() do
 		local data = DataService.get(player)
 		if data then
-			local rate = CreatureService.incomePerSec(player)
+			local rate = CreatureService.incomePerSec(player) * IncomeService.multiplier(player)
 			if player:GetAttribute("IncomePerSec") ~= rate then
 				player:SetAttribute("IncomePerSec", rate)
 			end

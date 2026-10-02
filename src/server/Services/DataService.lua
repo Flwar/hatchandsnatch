@@ -235,6 +235,7 @@ function DataService.start()
 			firsts = DataService.firsts(),
 			arenaWins = data.arenaWins,
 			arenaBattles = data.arenaBattles,
+			bonusPedestals = data.bonusPedestals,
 		}
 		return summary
 	end)
