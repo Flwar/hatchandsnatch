@@ -88,6 +88,67 @@ local function burst(root: BasePart, color: Color3)
 	Debris:AddItem(emitter, 2)
 end
 
+-- Mutated creatures sparkle and glow in their mutation's colors (local effects only).
+local AURAS: { [string]: { texture: string, colors: ColorSequence, light: Color3, rate: number, speed: number } } = {
+	Golden = {
+		texture = "rbxasset://textures/particles/sparkles_main.dds",
+		colors = ColorSequence.new(Color3.fromRGB(255, 226, 110)),
+		light = Color3.fromRGB(255, 206, 90),
+		rate = 6,
+		speed = 1.5,
+	},
+	Electric = {
+		texture = "rbxasset://textures/particles/sparkles_main.dds",
+		colors = ColorSequence.new(Color3.fromRGB(120, 236, 255), Color3.fromRGB(255, 240, 110)),
+		light = Color3.fromRGB(110, 220, 255),
+		rate = 12,
+		speed = 5,
+	},
+	Frozen = {
+		texture = "rbxasset://textures/particles/smoke_main.dds",
+		colors = ColorSequence.new(Color3.fromRGB(235, 248, 255)),
+		light = Color3.fromRGB(190, 230, 255),
+		rate = 5,
+		speed = 0.8,
+	},
+	Rainbow = {
+		texture = "rbxasset://textures/particles/sparkles_main.dds",
+		colors = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 96, 96)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 230, 80)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(110, 170, 255)),
+		}),
+		light = Color3.fromRGB(255, 240, 255),
+		rate = 9,
+		speed = 2,
+	},
+}
+
+local function addAura(root: BasePart, mutation: string)
+	local aura = AURAS[mutation]
+	if not aura then
+		return
+	end
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Name = "MutationAura"
+	emitter.Texture = aura.texture
+	emitter.Color = aura.colors
+	emitter.LightEmission = 1
+	emitter.Size = NumberSequence.new(0.35, 0)
+	emitter.Speed = NumberRange.new(aura.speed * 0.5, aura.speed)
+	emitter.SpreadAngle = Vector2.new(180, 180)
+	emitter.Lifetime = NumberRange.new(0.8, 1.6)
+	emitter.Rate = aura.rate
+	emitter.Shape = Enum.ParticleEmitterShape.Box
+	emitter.Parent = root
+	local light = Instance.new("PointLight")
+	light.Name = "MutationLight"
+	light.Color = aura.light
+	light.Brightness = 0.8
+	light.Range = 9
+	light.Parent = root
+end
+
 local function makeLabel(root: BasePart, name: string, color: Color3, dark: Color3): (BillboardGui, TextLabel)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "CreatureLabel"
@@ -127,7 +188,13 @@ local function track(instance: Instance)
 		return
 	end
 	local rarity = Rarity.get(def.rarity)
-	local gui, status = makeLabel(rootPart, def.displayName, rarity.color, rarity.dark)
+	local mutation = model:GetAttribute("Mutation")
+	local name = def.displayName
+	if typeof(mutation) == "string" then
+		name = `{mutation} {def.displayName}`
+		addAura(rootPart, mutation)
+	end
+	local gui, status = makeLabel(rootPart, name, rarity.color, rarity.dark)
 	local entry: Tracked = {
 		model = model,
 		root = rootPart,

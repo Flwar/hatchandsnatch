@@ -48,7 +48,8 @@ local function build(content: Frame)
 		local rarity = Rarity.get(def.rarity)
 		local card = Widgets.card(list, UDim2.new(1, 0, 0, 80))
 		card.LayoutOrder = index
-		Widgets.creatureViewport(card, row.id, false, UDim2.fromOffset(72, 72)).Position = UDim2.fromOffset(4, 4)
+		Widgets.creatureViewport(card, row.id, false, UDim2.fromOffset(72, 72), row.mutation).Position =
+			UDim2.fromOffset(4, 4)
 		local name = Theme.text("Name", `{def.displayName}{if row.mutation then ` ({row.mutation})` else ""}`, card)
 		name.Position = UDim2.fromOffset(82, 6)
 		name.Size = UDim2.new(0.42, 0, 0, 34)

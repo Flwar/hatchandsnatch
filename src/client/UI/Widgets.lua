@@ -109,7 +109,13 @@ function Widgets.grid(parent: Instance, cellSize: UDim2): ScrollingFrame
 end
 
 -- A 3D preview of a creature. `silhouette` renders it as a black shape (undiscovered).
-function Widgets.creatureViewport(parent: Instance, creatureId: string, silhouette: boolean, size: UDim2): ViewportFrame
+function Widgets.creatureViewport(
+	parent: Instance,
+	creatureId: string,
+	silhouette: boolean,
+	size: UDim2,
+	mutation: string?
+): ViewportFrame
 	local viewport = Instance.new("ViewportFrame")
 	viewport.Name = "Preview"
 	viewport.Size = size
@@ -118,7 +124,7 @@ function Widgets.creatureViewport(parent: Instance, creatureId: string, silhouet
 	viewport.LightColor = Color3.fromRGB(255, 250, 240)
 	viewport.LightDirection = Vector3.new(-1, -1.5, -0.8)
 	viewport.Parent = parent
-	local options: CreatureModels.BuildOptions = { stage = "Adult", origin = CFrame.new() }
+	local options: CreatureModels.BuildOptions = { stage = "Adult", origin = CFrame.new(), mutation = mutation :: any }
 	local ok, model = pcall(CreatureModels.build, creatureId, options)
 	if not ok or not model then
 		return viewport
