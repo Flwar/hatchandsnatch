@@ -25,6 +25,7 @@ local coinLabel: TextLabel
 local coinPill: Frame
 local coinScale: UIScale
 local baseLabel: TextLabel
+local incomeLabel: TextLabel
 local toastList: Frame
 
 local function buildCoinPill(parent: Instance)
@@ -63,10 +64,21 @@ local function buildCoinPill(parent: Instance)
 	coinLabel.TextXAlignment = Enum.TextXAlignment.Left
 	coinLabel.TextColor3 = Theme.Colors.Coin
 
+	incomeLabel = Theme.text("Income", "", parent)
+	incomeLabel.AnchorPoint = Vector2.new(0.5, 0)
+	incomeLabel.Position = UDim2.new(0.5, 0, 0, 64)
+	incomeLabel.Size = UDim2.fromOffset(200, 22)
+	incomeLabel.TextColor3 = Theme.Colors.Success
+
 	baseLabel = Theme.text("Base", "", parent)
 	baseLabel.AnchorPoint = Vector2.new(0.5, 0)
-	baseLabel.Position = UDim2.new(0.5, 0, 0, 66)
-	baseLabel.Size = UDim2.fromOffset(200, 24)
+	baseLabel.Position = UDim2.new(0.5, 0, 0, 88)
+	baseLabel.Size = UDim2.fromOffset(200, 20)
+end
+
+local function updateIncome()
+	local rate = player:GetAttribute("IncomePerSec")
+	incomeLabel.Text = if typeof(rate) == "number" and rate > 0 then `+{Format.short(rate)}/s` else ""
 end
 
 local function updateCoins(animate: boolean)
@@ -144,7 +156,7 @@ function HudController.init()
 	toastList = Instance.new("Frame")
 	toastList.Name = "Toasts"
 	toastList.AnchorPoint = Vector2.new(0.5, 0)
-	toastList.Position = UDim2.new(0.5, 0, 0, 98)
+	toastList.Position = UDim2.new(0.5, 0, 0, 114)
 	toastList.Size = UDim2.fromOffset(360, 160)
 	toastList.BackgroundTransparency = 1
 	toastList.Parent = gui
@@ -158,6 +170,8 @@ end
 function HudController.start()
 	updateCoins(false)
 	updateBase()
+	updateIncome()
+	player:GetAttributeChangedSignal("IncomePerSec"):Connect(updateIncome)
 	player:GetAttributeChangedSignal("Coins"):Connect(function()
 		updateCoins(true)
 	end)

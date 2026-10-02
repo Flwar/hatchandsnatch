@@ -18,6 +18,9 @@ local ORDER: { { name: string, controller: Controller } } = {
 	{ name = "HudController", controller = require(Controllers:WaitForChild("HudController")) :: any },
 	{ name = "BaseController", controller = require(Controllers:WaitForChild("BaseController")) :: any },
 	{ name = "GalleryController", controller = require(Controllers:WaitForChild("GalleryController")) :: any },
+	{ name = "CreatureController", controller = require(Controllers:WaitForChild("CreatureController")) :: any },
+	{ name = "PromptController", controller = require(Controllers:WaitForChild("PromptController")) :: any },
+	{ name = "ConveyorController", controller = require(Controllers:WaitForChild("ConveyorController")) :: any },
 }
 
 for _, entry in ORDER do
