@@ -11,7 +11,8 @@ synced into Studio with [Rojo](https://rojo.space).
 
 ## Status
 
-Milestone 0 (project setup) is done. See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
+Milestones 0 (project setup) and 1 (core loop: buy eggs, hatch, grow, earn, collect) are done.
+See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
 
 ## Getting started
 
@@ -27,7 +28,10 @@ Milestone 0 (project setup) is done. See [CHANGELOG.md](CHANGELOG.md) for what e
      because the game builds its own ground.
    - **Build a place file.** Run `rojo build -o HatchAndSnatch.rbxl` and open that file in Studio.
 4. Press **Play**. You spawn inside your own base. A star marker shows which base is yours, and
-   the HUD shows your coins and base number.
+   the HUD shows your coins and base number. Walk to the conveyor in the lobby and buy an egg
+   (press **E**, or tap the prompt on mobile). It lands on a pedestal in your base, hatches and
+   grows up, and its coins pile up on the green collect pad by your entrance. Step on the pad to
+   collect them.
 
 ### One-time Studio settings
 
@@ -47,6 +51,9 @@ src/
     Config.lua            every tunable number (balance, timings, map layout, debug toggles)
     Remotes.lua           the single registry of RemoteEvents / RemoteFunctions
     Rarity.lua            rarity tiers, colors, weighted roll
+    Growth.lua            growth stage math from plantedAt timestamps
+    Economy.lua           prices and income formulas (pedestal cost, sell value, income/s)
+    Tags.lua              CollectionService tag names
     CreatureData.lua      the 21 creatures: id, rarity, income, grow time, price, tags
     Types.lua             PlayerData / CreatureRecord shapes
     Util/Format.lua       1.2K / 3.4M number formatting, timers
@@ -56,12 +63,15 @@ src/
     Models/Gallery.lua    the dev creature showroom layout
   server/                 -> ServerScriptService
     Main.server.lua       bootstrap: remotes, then init/start each service in order
-    Services/             DataService, MapService, BaseService (more per milestone)
-    Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter
+    Services/             DataService, MapService, BaseService, CreatureService,
+                          GrowthService, IncomeService, ConveyorService
+    Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter,
+                          Ticker (the single server heartbeat), Character (distance checks)
     World/                MapBuilder (lobby, conveyor, 8 bases), Props (trees, lamps, signs)
   client/                 -> StarterPlayer.StarterPlayerScripts
     Main.client.lua       bootstrap for controllers
-    Controllers/          HudController, BaseController, GalleryController
+    Controllers/          HudController, BaseController, GalleryController, CreatureController,
+                          PromptController, ConveyorController
     UI/Theme.lua          colors, fonts, mobile scaling
 tests/run.luau            headless tests (Lune)
 tools/preview/            renders models to PNG outside Studio (Lune + three.js)
@@ -75,6 +85,9 @@ docs/images/              rendered previews of the creatures and the map
 - **Remotes are guarded.** Server code never listens to a remote directly. `Net.onEvent` and
   `Net.onInvoke` rate-limit every call per player, reject the wrong argument count, run a `Guard`
   validator on each argument, and wrap the handler in `xpcall`.
+- **Proximity prompts are checked like remotes.** Buying, selling, unlocking and collecting
+  re-check ownership, distance, rate limits and coins on the server before doing anything.
+- **One heartbeat.** Periodic work (income, growth, the conveyor) registers with `Ticker`.
 - **One bootstrap per side.** It calls `init()` on every service or controller in order, then
   `start()`.
 - **Balance lives in Config.** `src/shared/Config.lua` holds every number. The table is
