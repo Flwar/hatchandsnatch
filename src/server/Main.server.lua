@@ -25,6 +25,10 @@ local ORDER: { { name: string, service: Service } } = {
 	{ name = "GrowthService", service = require(Services:WaitForChild("GrowthService")) :: any },
 	{ name = "IncomeService", service = require(Services:WaitForChild("IncomeService")) :: any },
 	{ name = "ConveyorService", service = require(Services:WaitForChild("ConveyorService")) :: any },
+	{ name = "CycleService", service = require(Services:WaitForChild("CycleService")) :: any },
+	{ name = "RaidService", service = require(Services:WaitForChild("RaidService")) :: any },
+	{ name = "CombatService", service = require(Services:WaitForChild("CombatService")) :: any },
+	{ name = "TrapService", service = require(Services:WaitForChild("TrapService")) :: any },
 }
 
 for _, entry in ORDER do
