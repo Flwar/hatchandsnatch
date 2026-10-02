@@ -99,15 +99,17 @@ local function clearVisuals(machine: Model)
 	machine:SetAttribute("ResultName", "")
 end
 
-local function showMini(machine: Model, creatureId: string, socket: BasePart?, scale: number, stage: string?)
+local function showMini(machine: Model, creatureId: string, socket: BasePart?, scale: number, mutation: Types.Mutation?)
 	if not socket then
 		return
 	end
-	local ok, model = pcall(CreatureModels.build, creatureId, {
-		stage = (stage or "Adult") :: any,
+	local options: CreatureModels.BuildOptions = {
+		stage = "Adult",
 		origin = socket.CFrame * CFrame.new(0, socket.Size.Y / 2, 0),
 		scale = scale,
-	})
+		mutation = mutation,
+	}
+	local ok, model = pcall(CreatureModels.build, creatureId, options)
 	if not ok then
 		warn(`FusionService: couldn't build {creatureId}: {model}`)
 		return
@@ -137,15 +139,16 @@ local function showJob(player: Player)
 	if not job then
 		return
 	end
-	showMini(machine, job.parents[1].id, socketOf(machine, { "PodL", "Socket" }), MINI_SCALE)
-	showMini(machine, job.parents[2].id, socketOf(machine, { "PodR", "Socket" }), MINI_SCALE)
+	local a, b = job.parents[1], job.parents[2]
+	showMini(machine, a.id, socketOf(machine, { "PodL", "Socket" }), MINI_SCALE, a.mutation)
+	showMini(machine, b.id, socketOf(machine, { "PodR", "Socket" }), MINI_SCALE, b.mutation)
 	local remaining = math.max(0, job.endsAt - os.time())
 	machine:SetAttribute("FusionEndsAt", Workspace:GetServerTimeNow() + remaining)
 	machine:SetAttribute("State", if remaining > 0 then "Fusing" else "Ready")
 	if remaining <= 0 then
 		local def = CreatureData.get(job.resultId)
 		machine:SetAttribute("ResultName", if def then def.displayName else "")
-		showMini(machine, job.resultId, socketOf(machine, { "Reactor", "ResultSocket" }), RESULT_SCALE)
+		showMini(machine, job.resultId, socketOf(machine, { "Reactor", "ResultSocket" }), RESULT_SCALE, job.mutation)
 	end
 end
 
