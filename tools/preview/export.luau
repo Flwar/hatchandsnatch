@@ -231,6 +231,27 @@ elseif mode == "hybridsample" then
 		table.insert(models, { label = `{def.displayName} - {def.rarity}`, parts = exportParts(model, origin) })
 	end
 	writeScene("hybrid-sample", { title = "Fallback hybrids (sample)", kind = "gallery", models = models })
+elseif mode == "mutations" then
+	-- Each creature plain and with every weather mutation, one row per creature.
+	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")
+	local ids = {}
+	for i = 2, #process.args do
+		table.insert(ids, process.args[i])
+	end
+	if #ids == 0 then
+		ids = { "blobbit", "waddlecake", "volcanowl", "toastshark", "jellydonut" }
+	end
+	local origin = roblox.CFrame.new()
+	local models = {}
+	for _, id in ids do
+		for _, mutation in { "None", "Golden", "Electric", "Frozen", "Rainbow" } do
+			local options =
+				{ stage = "Adult", origin = origin, mutation = if mutation == "None" then nil else mutation }
+			local model = CreatureModels.build(id, options)
+			table.insert(models, { label = `{id} {mutation}`, parts = exportParts(model, origin) })
+		end
+	end
+	writeScene("mutations", { title = "Weather mutations", kind = "gallery", columns = 5, models = models })
 elseif mode == "recipes" then
 	-- Every named recipe hybrid at every stage.
 	local CreatureData = Loader.require("src/shared/CreatureData")

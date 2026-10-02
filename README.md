@@ -15,6 +15,11 @@ parent's signature piece:
 
 ![Fallback hybrids](docs/images/hybrids.png)
 
+Weather events mutate growing creatures. Golden Rain makes them Golden, Lightning Storm
+Electric, Frost Frozen and Rainbow Rainbow. Each mutation multiplies income:
+
+![Weather mutations](docs/images/mutations.png)
+
 The repository is the source of truth. Every script, and every model, lives here as code and is
 synced into Studio with [Rojo](https://rojo.space).
 
@@ -28,6 +33,7 @@ Done so far:
 - Milestone 3: night raids and PvP.
 - Milestone 4: menus, tutorial and sounds.
 - Milestone 5: the Fusion Machine, hybrids and the Index.
+- Milestone 6: weather events and mutations.
 
 See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
 
@@ -69,6 +75,7 @@ src/
     Remotes.lua           the single registry of RemoteEvents / RemoteFunctions
     Rarity.lua            rarity tiers, colors, weighted roll
     Growth.lua            growth stage math from plantedAt timestamps
+    Weather.lua           the four weather events and their mutation rules
     Economy.lua           prices and income formulas (pedestal cost, sell value, income/s)
     Tags.lua              CollectionService tag names
     CreatureData.lua      the 21 creatures plus hybrid lookup (named recipes and fallbacks)
@@ -84,14 +91,14 @@ src/
     Services/             DataService, MapService, BaseService, CreatureService,
                           GrowthService, IncomeService, ConveyorService, CycleService,
                           RaidService, CombatService, TrapService, FusionService,
-                          TutorialService
+                          WeatherService, TutorialService
     Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter,
                           Ticker (the single server heartbeat), Character (distance checks)
     World/                MapBuilder (lobby, conveyor, 8 bases), FusionMachine, Props
   client/                 -> StarterPlayer.StarterPlayerScripts
     Main.client.lua       bootstrap for controllers
     Controllers/          one per feature (HUD, creatures, conveyor, cycle, shields, raids,
-                          combat, menu, fusion, sound, tutorial)
+                          combat, menu, fusion, weather, sound, tutorial)
     UI/                   Theme, Widgets, Window, Popup, Banner, Effects, Sounds
     Screens/              Shop, Inventory, Index, Fusion, Settings windows
     State/                client-side state: profile summary, settings, raid rules, your creatures
@@ -141,6 +148,7 @@ lune run tools/preview/export.luau map                            # lobby, a fur
 lune run tools/preview/export.luau recipes                        # the named recipe hybrids
 lune run tools/preview/export.luau hybrids [creatureId ...]       # fallback hybrids, 20 per sheet
 lune run tools/preview/export.luau machine blobbit toastshark     # the Fusion Machine mid-fusion
+lune run tools/preview/export.luau mutations blobbit volcanowl    # every weather mutation
 cd tools/preview && npm install && node render.mjs                # renders out/*.json to out/*.png
 lune run tools/preview/export.luau rbxm                           # build/Creatures.rbxm to drag into Studio
 ```
@@ -152,7 +160,13 @@ They are announced to other servers on the MessagingService topic `Config.Discov
 In Studio, turn on **Game Settings → Security → Enable Studio Access to API Services** to
 test them for real. Without it, each server remembers its own first discoveries.
 
+## Testing weather
+
+Set `Config.Debug.FastWeather = true` to get a weather event 15 s after the server starts,
+and then every 30 to 45 s. Buy a few eggs and watch them mutate while they grow.
+
 ## Turning things off before publishing
 
 - `Config.Debug.ShowCreatureGallery = false` hides the creature showroom in the lobby. It's a
   development aid, and it would spoil the Secret creatures.
+- `Config.Debug.StartAtNight` and `Config.Debug.FastWeather` should both be `false`.

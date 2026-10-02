@@ -191,7 +191,7 @@ window.renderScene = async (scene, variant) => {
   if (scene.kind === "gallery") {
     const W = 300, H = 300;
     const cells = groups.map((g) => ({ label: g.label, canvas: renderView(g.group, { w: W, h: H, dir: [-0.55, 0.42, -1], pedestal: 7 }) }));
-    return sheet(cells, 6, W, H, scene.title);
+    return sheet(cells, scene.columns || 6, W, H, scene.title);
   }
   const g = groups[0].group;
   if (scene.kind === "map") {

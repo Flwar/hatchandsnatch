@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.7.0] - Milestone 6: weather mutations
+
+### Added
+- Weather (`WeatherService`, shared `Weather`):
+  - Every `Config.WeatherMinGapSec` to `WeatherMaxGapSec` a random event starts and lasts
+    60 to 90 s: Golden Rain, Lightning Storm, Frost or Rainbow.
+  - Each event's weight and chance are in `Config.WeatherEvents`.
+  - The event is published as the Workspace attributes `Weather` and `WeatherEndsAt`.
+  - `Config.Debug.FastWeather` runs events every 30 to 45 s for testing.
+- Mutations:
+  - While an event runs, every growing creature (egg or baby) on its pedestal without a
+    mutation rolls the event's chance every `Config.WeatherTickSec`.
+  - A hit is permanent: Golden x2, Electric x3, Frozen x1.5, Rainbow x5 income. It also
+    applies to selling and offline earnings.
+  - The model is rebuilt with a celebration hop, and the owner gets a toast.
+- Mutation looks (`CreatureModels.mutatePalette` and a material finish):
+  - Golden: polished gold, plus a floating halo.
+  - Electric: navy to electric blue, plus two neon bolts.
+  - Frozen: ice blue in Ice material, plus ice crystals.
+  - Rainbow: a hue per palette slot, plus a little rainbow arc.
+  - Faces keep their colors, so creatures stay readable.
+  - Works for eggs, babies, adults and hybrids. The decorations are sized to the creature
+    and stay on the pedestal.
+- On the client (`WeatherController`):
+  - a banner and sound when an event starts;
+  - a HUD chip with a countdown;
+  - a screen tint that layers on top of day and night;
+  - falling particles: rain, golden sparkles, snow or glitter;
+  - lightning flashes with thunder;
+  - a giant rainbow that stays in the same direction in the sky.
+- Mutated creatures sparkle and glow in their mutation's colors, and their labels say so
+  ("Golden Blobbit").
+- The Inventory and Fusion Machine show mutated looks. A hybrid keeps a mutation when both
+  parents share it.
+- Previews: `export.luau mutations [creatureId ...]`. Galleries can set their column count.
+- Tests:
+  - event weights, chances and timings;
+  - who can mutate;
+  - mutated palettes;
+  - every original, every named hybrid and a sample of fallback hybrids, with every
+    mutation at every stage.
+
 ## [0.6.0] - Milestone 5: fusion and the Index
 
 ### Added

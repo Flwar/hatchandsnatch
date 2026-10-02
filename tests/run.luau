@@ -284,9 +284,12 @@ local PART_BUDGET = { Egg = 20, Baby = 52, Adult = 36 }
 -- Hybrids carry pieces of two creatures, so they get a little more room.
 local HYBRID_BUDGET = { Egg = 20, Baby = 64, Adult = 48 }
 
-local function checkModel(id: string, stage: string, budget: { [string]: number })
+-- A mutation adds a small decoration (the rainbow arc is the biggest at 15 parts).
+local MUTATION_EXTRA = 15
+
+local function checkModel(id: string, stage: string, budget: { [string]: number }, mutation: string?)
 	local origin = roblox.CFrame.new(10, 2, -5)
-	local model = CreatureModels.build(id, { stage = stage, origin = origin })
+	local model = CreatureModels.build(id, { stage = stage, origin = origin, mutation = mutation })
 	local root = model.PrimaryPart
 	expect(root and root.Name == "Root", `{id} {stage}: missing Root`)
 	expect(root.Anchored and root.Transparency == 1, `{id} {stage}: Root must be invisible and anchored`)
@@ -306,7 +309,8 @@ local function checkModel(id: string, stage: string, budget: { [string]: number 
 			expect(inst.Size.X > 0 and inst.Size.Y > 0 and inst.Size.Z > 0, `{id} {stage}: {inst.Name} has a zero size`)
 		end
 	end
-	expect(count <= budget[stage], `{id} {stage}: {count} parts exceeds budget {budget[stage]}`)
+	local limit = budget[stage] + (if mutation then MUTATION_EXTRA else 0)
+	expect(count <= limit, `{id} {stage} {mutation or ""}: {count} parts exceeds budget {limit}`)
 	-- Adults must fit on a pedestal (with a little overhang) and nothing sinks deep below it.
 	if stage == "Adult" then
 		local footprint = math.max(root.Size.X, root.Size.Z)
@@ -353,6 +357,137 @@ end)
 test("Unknown creature ids are rejected", function()
 	local ok = pcall(CreatureModels.build, "not_a_creature", nil)
 	expect(not ok, "building an unknown creature should error")
+end)
+
+---------------------------------------------------------------------------
+-- Weather mutations (Milestone 6)
+---------------------------------------------------------------------------
+
+local Weather = Loader.require("src/shared/Weather")
+
+test("Weather events: one per mutation, sane numbers", function()
+	eq(#Weather.Events, 4, "four weather events")
+	local seen = {}
+	for _, event in Weather.Events do
+		expect((Config.MutationMultipliers :: any)[event.mutation], `{event.id} gives an unknown mutation`)
+		expect(not seen[event.mutation], `two events give {event.mutation}`)
+		seen[event.mutation] = true
+		expect(event.weight > 0 and event.chance > 0 and event.chance < 0.2, `{event.id} numbers`)
+		eq(Weather.forMutation(event.mutation), event, `forMutation({event.mutation})`)
+		eq(Weather.get(event.id), event, `get({event.id})`)
+		-- Chance that a creature growing through a whole average event mutates.
+		local ticks = (Config.WeatherMinLengthSec + Config.WeatherMaxLengthSec) / 2 / Config.WeatherTickSec
+		local p = 1 - (1 - event.chance) ^ ticks
+		expect(p > 0.05 and p < 0.5, `{event.id}: {p} chance per event is out of range`)
+	end
+	expect(
+		Weather.get("Rainbow").chance < Weather.get("GoldenRain").chance,
+		"the x5 mutation should be the hardest to get"
+	)
+end)
+
+test("Weather.pick follows the weights; gaps and lengths stay in range", function()
+	local rng = Random.new(7)
+	local counts = {}
+	local total = 0
+	for _, event in Weather.Events do
+		total += event.weight
+	end
+	local n = 20000
+	for _ = 1, n do
+		local id = Weather.pick(rng).id
+		counts[id] = (counts[id] or 0) + 1
+	end
+	for _, event in Weather.Events do
+		local share = (counts[event.id] or 0) / n
+		expect(math.abs(share - event.weight / total) < 0.02, `{event.id} picked {share}`)
+	end
+	for _ = 1, 200 do
+		local gap, length = Weather.gap(rng), Weather.length(rng)
+		expect(gap >= Config.WeatherMinGapSec and gap <= Config.WeatherMaxGapSec, `gap {gap}`)
+		expect(length >= Config.WeatherMinLengthSec and length <= Config.WeatherMaxLengthSec, `length {length}`)
+	end
+end)
+
+test("Only growing, unmutated creatures can mutate", function()
+	local rng = Random.new(3)
+	local event = Weather.get("GoldenRain")
+	for _ = 1, 500 do
+		expect(not Weather.rollMutation(rng, event, "Adult", nil), "adults never mutate")
+		expect(not Weather.rollMutation(rng, event, "Egg", "Frozen"), "mutated creatures keep their mutation")
+	end
+	local hits = 0
+	for _ = 1, 20000 do
+		if Weather.rollMutation(rng, event, "Baby", nil) then
+			hits += 1
+		end
+	end
+	expect(math.abs(hits / 20000 - event.chance) < 0.005, `baby mutation rate {hits / 20000}`)
+end)
+
+test("Mutated palettes recolor every slot and keep the keys", function()
+	local palette = CreatureModels.palette("Blobbit") :: any
+	eq(CreatureModels.mutatePalette(palette, nil), palette, "no mutation keeps the palette")
+	for _, mutation in { "Golden", "Electric", "Frozen", "Rainbow" } do
+		local mutated = CreatureModels.mutatePalette(palette, mutation)
+		local again = CreatureModels.mutatePalette(palette, mutation)
+		for key, color in palette do
+			local new = mutated[key]
+			expect(new, `{mutation} lost {key}`)
+			eq(new, again[key], `{mutation} is deterministic for {key}`)
+			if mutation == "Golden" then
+				expect(new.R >= new.G and new.G >= new.B, `golden {key} should be gold`)
+			elseif mutation == "Frozen" or mutation == "Electric" then
+				expect(new.B >= new.R, `{mutation} {key} should be blue`)
+			end
+			local _ = color
+		end
+	end
+	local hues = {}
+	for _, color in CreatureModels.mutatePalette(palette, "Rainbow") do
+		local h = color:ToHSV()
+		hues[math.floor(h * 12)] = true
+	end
+	local distinct = 0
+	for _ in hues do
+		distinct += 1
+	end
+	expect(distinct >= 4, "a rainbow creature uses many hues")
+end)
+
+test("Every creature builds with every mutation, faces stay normal", function()
+	local ids = {}
+	for _, def in CreatureData.List do
+		table.insert(ids, def.id)
+	end
+	for _, def in CreatureData.Hybrids do
+		table.insert(ids, def.id)
+	end
+	local fallbacks = fallbackIds()
+	for i = 1, #fallbacks, 17 do
+		table.insert(ids, fallbacks[i])
+	end
+	for _, id in ids do
+		local budget = if CreatureData.isOriginal(id) then PART_BUDGET else HYBRID_BUDGET
+		for _, mutation in { "Golden", "Electric", "Frozen", "Rainbow" } do
+			for _, stage in { "Egg", "Baby", "Adult" } do
+				checkModel(id, stage, budget, mutation)
+			end
+		end
+	end
+	-- Eyes keep their colors so mutated creatures still read as faces.
+	local plain = CreatureModels.build("blobbit", nil)
+	local golden = CreatureModels.build("blobbit", { mutation = "Golden" })
+	local function eyeColor(model: any): any
+		for _, part in model:GetDescendants() do
+			if part.Name == "EyeL" then
+				return part.Color
+			end
+		end
+		return nil
+	end
+	expect(eyeColor(plain) and eyeColor(plain) == eyeColor(golden), "eyes keep their color")
+	eq(golden:GetAttribute("Mutation"), "Golden", "mutated models carry their mutation")
 end)
 
 ---------------------------------------------------------------------------
