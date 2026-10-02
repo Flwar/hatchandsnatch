@@ -35,6 +35,22 @@ export type PlayerData = {
 	lastLogout: number, -- os.time(), 0 if never
 	receipts: { [string]: boolean }, -- processed purchase ids
 	funnel: { [string]: boolean }, -- analytics milestones already logged
+	settings: Settings,
+	tutorialStep: number, -- 1..4 while the tutorial runs, 5 once it is done
+}
+
+export type Settings = {
+	sfx: boolean,
+	labels: boolean, -- floating creature labels
+}
+
+-- What the client asks for when opening menus (see DataService GetProfile).
+export type ProfileSummary = {
+	discoveries: { string },
+	trophies: number,
+	settings: Settings,
+	pedestals: number,
+	traps: { TrapRecord },
 }
 
 return {}

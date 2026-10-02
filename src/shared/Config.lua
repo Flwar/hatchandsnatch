@@ -158,6 +158,9 @@ Config.RateLimits = {
 	Steal = { rate = 1, burst = 2 },
 	BatSwing = { rate = 3, burst = 3 },
 	SetLocked = { rate = 2, burst = 4 },
+	SaveSettings = { rate = 1, burst = 3 },
+	GetProfile = { rate = 2, burst = 4 },
+	TutorialAck = { rate = 0.5, burst = 2 },
 	BuyTrap = { rate = 1, burst = 3 },
 }
 
@@ -180,6 +183,27 @@ Config.Map = {
 	ConveyorLength = 64,
 	ConveyorWidth = 7,
 	ConveyorHeight = 3.2, -- belt surface height above the plaza
+}
+
+---------------------------------------------------------------------------
+-- Sounds. Built-in Roblox placeholder sounds; swap the ids for your own uploads.
+---------------------------------------------------------------------------
+Config.Sounds = {
+	Click = { id = "rbxasset://sounds/clickfast.wav", volume = 0.5, pitch = 1 },
+	Buy = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6, pitch = 1 },
+	Hatch = { id = "rbxasset://sounds/snap.wav", volume = 0.8, pitch = 1.1 },
+	GrowUp = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.6, pitch = 0.8 },
+	Collect = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, pitch = 1.35 },
+	Steal = { id = "rbxasset://sounds/swoosh.wav", volume = 0.8, pitch = 1 },
+	Theft = { id = "rbxasset://sounds/unsheath.wav", volume = 0.6, pitch = 1 },
+	Bonk = { id = "rbxasset://sounds/swordslash.wav", volume = 0.8, pitch = 0.9 },
+	Slip = { id = "rbxasset://sounds/splat.wav", volume = 0.8, pitch = 1 },
+	Honk = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 1, pitch = 0.45 },
+	Night = { id = "rbxasset://sounds/unsheath.wav", volume = 0.5, pitch = 0.7 },
+	Day = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4, pitch = 1.1 },
+	Discovery = { id = "rbxasset://sounds/victory.wav", volume = 0.7, pitch = 1 },
+	Weather = { id = "rbxasset://sounds/victory.wav", volume = 0.5, pitch = 0.75 },
+	Warning = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, pitch = 0.7 },
 }
 
 ---------------------------------------------------------------------------

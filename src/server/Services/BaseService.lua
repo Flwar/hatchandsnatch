@@ -33,6 +33,8 @@ local BaseService = {}
 -- Fired as (player, base) when a player gets a base, and (player, base) when they lose it.
 BaseService.Assigned = Signal.new()
 BaseService.Released = Signal.new()
+-- Fired as (player, pedestalCount) after a pedestal is unlocked.
+BaseService.PedestalsChanged = Signal.new()
 
 local ownerOf: { [number]: Player } = {} -- base index -> owner
 local baseOf: { [Player]: number } = {} -- owner -> base index
@@ -144,15 +146,31 @@ local function onUnlockTriggered(player: Player, slot: number)
 	then
 		return
 	end
+	BaseService.buyPedestal(player)
+end
+
+-- Unlocks the player's next pedestal if they can afford it (prompt and Shop both use this).
+function BaseService.buyPedestal(player: Player): boolean
+	local base = BaseService.getBase(player)
+	local data = DataService.get(player)
+	if not base or not data then
+		return false
+	end
+	if data.pedestals >= Config.MaxPedestals then
+		Net.notify(player, "All pedestals are already unlocked!", "info")
+		return false
+	end
 	local cost = Economy.pedestalCost(data.pedestals)
 	if not DataService.trySpend(player, cost) then
 		Net.notify(player, `You need {Format.short(cost - data.coins)} more coins`, "warning")
-		return
+		return false
 	end
 	data.pedestals += 1
 	refreshPedestals(base, data.pedestals)
 	updateUnlockPrompt(player)
-	Net.notify(player, `Pedestal {slot} unlocked!`, "success")
+	Net.notify(player, `Pedestal {data.pedestals} unlocked!`, "success")
+	BaseService.PedestalsChanged:fire(player, data.pedestals)
+	return true
 end
 
 -- Puts an owner-only "Unlock" prompt on the next locked pedestal of the player's base.
@@ -330,6 +348,11 @@ function BaseService.init()
 end
 
 function BaseService.start()
+	Net.onEvent("BuyPedestal", {}, function(player: Player)
+		if RateLimiter.allow(player, "UnlockPedestal") then
+			BaseService.buyPedestal(player)
+		end
+	end)
 	DataService.Loaded:connect(onDataLoaded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 	-- Catch players whose data finished loading before this service started.

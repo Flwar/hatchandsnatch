@@ -133,19 +133,29 @@ local function ownerAction(player: Player, uid: string, limitKey: string): Place
 	return entry
 end
 
-local function onSellTriggered(player: Player, uid: string)
-	local entry = ownerAction(player, uid, "SellCreature")
-	if not entry then
-		return
+-- Sells one of the player's creatures (it must be at home on its pedestal).
+function CreatureService.sell(player: Player, uid: string): boolean
+	local entry = placed[uid]
+	if not entry or entry.owner ~= player or entry.state ~= PLACED then
+		return false
 	end
 	local record = removeInternal(uid, "sold")
 	if not record then
-		return
+		return false
 	end
 	local value = Economy.sellValue(record.id, record.mutation)
 	DataService.addCoins(player, value)
 	local def = CreatureData.get(record.id)
 	Net.notify(player, `Sold {if def then def.displayName else "creature"} for {Format.short(value)} coins`, "success")
+	return true
+end
+
+local function onSellTriggered(player: Player, uid: string)
+	local entry = ownerAction(player, uid, "SellCreature")
+	if not entry then
+		return
+	end
+	CreatureService.sell(player, uid)
 end
 
 local function addOwnerPrompt(
@@ -509,6 +519,9 @@ function CreatureService.start()
 		clearPlayer(player)
 	end)
 	Players.PlayerRemoving:Connect(clearPlayer)
+	Net.onEvent("SellCreature", { Guard.uid() }, function(player: Player, uid: string)
+		CreatureService.sell(player, uid)
+	end)
 	Net.onEvent("SetLocked", { Guard.uid(), Guard.boolean() }, function(player: Player, uid: string, locked: boolean)
 		local entry = placed[uid]
 		if entry and entry.owner == player then

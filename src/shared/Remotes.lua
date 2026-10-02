@@ -31,6 +31,11 @@ local DEFINITIONS: { [string]: Kind } = {
 	BatSwing = "Event", -- () swing the equipped bonk bat
 	SetLocked = "Event", -- (uid: string, locked: boolean) lock/unlock one of your creatures
 	BuyTrap = "Event", -- (trapType: string) buy a trap for your base
+	BuyPedestal = "Event", -- () unlock your next pedestal (Shop)
+	SellCreature = "Event", -- (uid: string) sell one of your creatures (Inventory)
+	SaveSettings = "Event", -- (sfx: boolean, labels: boolean)
+	TutorialAck = "Event", -- () finished reading the last tutorial note
+	GetProfile = "Function", -- () -> ProfileSummary for menus
 }
 Remotes.Definitions = table.freeze(DEFINITIONS)
 

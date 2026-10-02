@@ -27,6 +27,7 @@ local Signal = require(Shared:WaitForChild("Util"):WaitForChild("Signal"))
 local Net = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("Net"))
 local Ticker = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("Ticker"))
 local DataSchema = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("DataSchema"))
+local Guard = require(script.Parent.Parent:WaitForChild("Util"):WaitForChild("Guard"))
 local ProfileStore = require(script.Parent.Parent:WaitForChild("Packages"):WaitForChild("ProfileStore")) :: any
 
 type PlayerData = Types.PlayerData
@@ -212,6 +213,35 @@ function DataService.init()
 end
 
 function DataService.start()
+	Net.onInvoke("GetProfile", {}, function(player: Player): any
+		local data = sessions[player]
+		if not data then
+			return nil
+		end
+		local discoveries = {}
+		for id in data.discoveries do
+			table.insert(discoveries, id)
+		end
+		local summary: Types.ProfileSummary = {
+			discoveries = discoveries,
+			trophies = data.trophies,
+			settings = table.clone(data.settings),
+			pedestals = data.pedestals,
+			traps = table.clone(data.traps),
+		}
+		return summary
+	end)
+	Net.onEvent(
+		"SaveSettings",
+		{ Guard.boolean(), Guard.boolean() },
+		function(player: Player, sfx: boolean, labels: boolean)
+			local data = sessions[player]
+			if data then
+				data.settings.sfx = sfx
+				data.settings.labels = labels
+			end
+		end
+	)
 	Net.onEvent("ClientReady", {}, function(player: Player)
 		if clientReady[player] then
 			return

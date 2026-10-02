@@ -489,6 +489,13 @@ test("DataSchema template and migration repair old or broken saves", function()
 	local nan = DataSchema.migrate({ coins = 0 / 0, pedestals = -4 })
 	eq(nan.coins, Config.StartingCoins, "corrupt NaN coins reset to the starting balance")
 	eq(nan.pedestals, Config.StartingPedestals, "pedestals never drop below the start")
+	eq(fresh.tutorialStep, 1, "new players start the tutorial")
+	eq(fresh.settings.sfx and fresh.settings.labels, true, "settings default on")
+	local settings = DataSchema.migrate({ settings = { sfx = false }, tutorialStep = 42 })
+	eq(settings.settings.sfx, false, "saved settings are kept")
+	eq(settings.settings.labels, true, "missing settings default on")
+	eq(settings.tutorialStep, 5, "tutorial step clamps to done")
+	eq(DataSchema.migrate({ settings = "bad" }).settings.sfx, true, "broken settings are replaced")
 end)
 
 ---------------------------------------------------------------------------
