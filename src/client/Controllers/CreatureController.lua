@@ -24,6 +24,7 @@ local Rarity = require(Shared:WaitForChild("Rarity"))
 local Tags = require(Shared:WaitForChild("Tags"))
 local Format = require(Shared:WaitForChild("Util"):WaitForChild("Format"))
 local Theme = require(script.Parent.Parent:WaitForChild("UI"):WaitForChild("Theme"))
+local Settings = require(script.Parent.Parent:WaitForChild("State"):WaitForChild("Settings"))
 
 type Tracked = {
 	model: Model,
@@ -95,6 +96,7 @@ local function makeLabel(root: BasePart, name: string, color: Color3, dark: Colo
 	gui.StudsOffsetWorldSpace = Vector3.new(0, root.Size.Y / 2 + 1.3, 0)
 	gui.MaxDistance = 45
 	gui.LightInfluence = 0
+	gui.Enabled = Settings.values.labels
 	gui.Parent = labelFolder
 	local title = Theme.text("CreatureName", name, gui)
 	title.Size = UDim2.fromScale(1, 0.5)
@@ -207,6 +209,13 @@ function CreatureController.start()
 		task.spawn(track, instance)
 	end
 	RunService.RenderStepped:Connect(animate)
+	Settings.Changed:connect(function(key: string, value: boolean)
+		if key == "labels" then
+			for _, entry in tracked do
+				entry.gui.Enabled = value
+			end
+		end
+	end)
 	while true do
 		task.wait(LABEL_REFRESH_SEC)
 		for model, entry in tracked do
