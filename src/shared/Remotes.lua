@@ -26,6 +26,8 @@ local DEFINITIONS: { [string]: Kind } = {
 	HonkAlert = "Event", -- (raiderUserId: number) a Honk Egg went off in your base
 	BatHit = "Event", -- (position: Vector3) play bonk effects
 	TrapSprung = "Event", -- (trapType: string, position: Vector3) play trap effects
+	FusionDone = "Event", -- (hybridId: string, isNewDiscovery: boolean) your hybrid is ready
+	FirstDiscovery = "Event", -- (hybridId: string, discoverer: string) a named recipe was found first
 	-- Client -> server
 	ClientReady = "Event", -- () the client finished loading its UI
 	BatSwing = "Event", -- () swing the equipped bonk bat
@@ -35,6 +37,7 @@ local DEFINITIONS: { [string]: Kind } = {
 	SellCreature = "Event", -- (uid: string) sell one of your creatures (Inventory)
 	SaveSettings = "Event", -- (sfx: boolean, labels: boolean)
 	TutorialAck = "Event", -- () finished reading the last tutorial note
+	StartFusion = "Event", -- (uidA: string, uidB: string) fuse two of your adults
 	GetProfile = "Function", -- () -> ProfileSummary for menus
 }
 Remotes.Definitions = table.freeze(DEFINITIONS)

@@ -94,6 +94,33 @@ function DataSchema.migrate(raw: { [string]: any }): PlayerData
 		end
 	end
 	raw.traps = traps
+	-- A fusion in progress: keep it if it is whole; otherwise hand its parents back.
+	local fusion = raw.fusion
+	if fusion ~= nil then
+		local whole = type(fusion) == "table"
+			and type(fusion.parents) == "table"
+			and #fusion.parents == 2
+			and type(fusion.resultId) == "string"
+			and type(fusion.endsAt) == "number"
+		local parents = if type(fusion) == "table" and type(fusion.parents) == "table" then fusion.parents else {}
+		for _, record in parents do
+			if
+				type(record) == "table"
+				and type(record.uid) == "string"
+				and type(record.id) == "string"
+				and type(record.plantedAt) == "number"
+			then
+				record.slot = if whole then math.floor(number(record.slot, 0)) else 0
+				record.locked = record.locked == true
+				if not whole then
+					table.insert(raw.creatures, record)
+				end
+			else
+				whole = false
+			end
+		end
+		raw.fusion = if whole then fusion else nil
+	end
 	return raw :: PlayerData
 end
 

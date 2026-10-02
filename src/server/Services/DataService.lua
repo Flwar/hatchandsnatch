@@ -42,6 +42,10 @@ DataService.Releasing = Signal.new()
 DataService.offlineMultiplier = function(_player: Player): number
 	return 1
 end
+-- Hook FusionService fills in: named recipe id -> who discovered it first.
+DataService.firsts = function(): { [string]: string }
+	return {}
+end
 
 local playerStore: any = nil
 local sessions: { [Player]: PlayerData } = {}
@@ -228,6 +232,7 @@ function DataService.start()
 			settings = table.clone(data.settings),
 			pedestals = data.pedestals,
 			traps = table.clone(data.traps),
+			firsts = DataService.firsts(),
 		}
 		return summary
 	end)

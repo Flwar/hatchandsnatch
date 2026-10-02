@@ -16,6 +16,15 @@ export type CreatureRecord = {
 	slot: number, -- pedestal slot in the owner's base
 }
 
+-- A fusion running in a player's machine. The parents' records stay here until the
+-- hybrid is placed, so nothing is lost if the player leaves or the server stops.
+export type FusionJob = {
+	parents: { CreatureRecord },
+	resultId: string,
+	mutation: Mutation?, -- kept only when both parents had the same mutation
+	endsAt: number, -- os.time() when the hybrid is done
+}
+
 export type TrapRecord = {
 	trapType: string, -- "BananaPeel" | "StickyFloor" | "HonkEgg"
 	spot: number, -- trap spot index in the base
@@ -37,6 +46,7 @@ export type PlayerData = {
 	funnel: { [string]: boolean }, -- analytics milestones already logged
 	settings: Settings,
 	tutorialStep: number, -- 1..4 while the tutorial runs, 5 once it is done
+	fusion: FusionJob?, -- the fusion running in this player's machine, if any
 }
 
 export type Settings = {
@@ -51,6 +61,7 @@ export type ProfileSummary = {
 	settings: Settings,
 	pedestals: number,
 	traps: { TrapRecord },
+	firsts: { [string]: string }, -- named recipe id -> who discovered it first (known so far)
 }
 
 return {}
