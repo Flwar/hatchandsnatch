@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0] - Milestone 2: persistence
+
+### Added
+- Saving with [ProfileStore](https://github.com/MadStudioRoblox/ProfileStore), vendored in
+  `src/server/Packages`, Apache-2.0 (see `licenses/`). Sessions are locked so the same profile
+  is never open on two servers. Data saves on leave, autosaves every `Config.AutoSaveSec`
+  through the shared Ticker, and is saved by ProfileStore on server shutdown. If loading
+  fails, the player is kicked with a friendly message instead of playing on unsaved data.
+- `DataSchema`: the template, plus a migration that upgrades older saves, converts numeric
+  strings, repairs NaN and bad values, and drops malformed creature records.
+- Offline progress: growth simply continues, because it is computed from timestamps. Income
+  counts only the time after each creature became an adult, capped at
+  `Config.OfflineIncomeCapHours`. A "While you were away" popup shows the payout once the
+  client is ready.
+- Client UI kit: `Popup` (queued modal dialogs with big touch-friendly buttons) and `Banner`
+  (queued slide-in announcements, used by later milestones).
+- Tests for offline earnings (adult-only time, cap, multipliers, clock skew) and migration.
+
 ## [0.2.0] - Milestone 1: core loop
 
 ### Added
