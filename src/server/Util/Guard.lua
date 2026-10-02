@@ -67,6 +67,23 @@ function Guard.creatureId(): Validator
 	end
 end
 
+-- An array of `min`..`max` values that all pass `inner`, with no other keys.
+function Guard.list(inner: Validator, min: number, max: number): Validator
+	return function(value: any): boolean
+		if type(value) ~= "table" then
+			return false
+		end
+		local count = 0
+		for key, item in value do
+			count += 1
+			if type(key) ~= "number" or key ~= count or not inner(item) then
+				return false
+			end
+		end
+		return count >= min and count <= max
+	end
+end
+
 function Guard.optional(inner: Validator): Validator
 	return function(value: any): boolean
 		return value == nil or inner(value)

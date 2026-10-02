@@ -233,6 +233,8 @@ function DataService.start()
 			pedestals = data.pedestals,
 			traps = table.clone(data.traps),
 			firsts = DataService.firsts(),
+			arenaWins = data.arenaWins,
+			arenaBattles = data.arenaBattles,
 		}
 		return summary
 	end)

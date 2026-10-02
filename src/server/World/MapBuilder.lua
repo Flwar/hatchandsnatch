@@ -12,6 +12,7 @@
 	    Lobby (Model)
 	      Conveyor (Model)  BeltStart / BeltEnd parts mark the egg path, Eggs (Folder)
 	      LobbySpawn (SpawnLocation)
+	      ArenaBoard (Model, see World/ArenaProps)
 	      GalleryAnchor (Part)
 	    Bases (Folder)
 	      Base1..BaseN (Model)  attributes: BaseIndex, BaseCFrame, OwnerUserId
@@ -31,6 +32,7 @@ local Config = require(Shared:WaitForChild("Config"))
 local ModelKit = require(Shared:WaitForChild("Models"):WaitForChild("ModelKit"))
 local Props = require(script.Parent.Props)
 local FusionMachine = require(script.Parent.FusionMachine)
+local ArenaProps = require(script.Parent.ArenaProps)
 
 local MapBuilder = {}
 
@@ -847,6 +849,9 @@ local function buildLobby(parent: Instance): Model
 	spawn.Duration = 0
 	spawn.Parent = lobby
 
+	-- The arena leaderboard and desk, across from the spawn so new players see it.
+	ArenaProps.board(CFrame.lookAt(v3(0, PLAZA_TOP, -43), v3(0, PLAZA_TOP, 0)), lobby)
+
 	-- Where the creature showroom is laid out (dev gallery), facing the conveyor.
 	part("GalleryAnchor", "Block", v3(1, 1, 1), CFrame.new(0, PLAZA_TOP, 16), Color3.new(1, 1, 1), lobby, {
 		transparency = 1,
@@ -855,8 +860,11 @@ local function buildLobby(parent: Instance): Model
 
 	local decor = newModel("Decor", lobby)
 	for i = 0, 7 do
-		local a = math.rad(i * 45)
-		Props.lamp(CFrame.new(math.cos(a) * (R - 4), PLAZA_TOP, math.sin(a) * (R - 4)), decor, 11)
+		-- The lamp at 270 degrees would stand right behind the arena board.
+		if i ~= 6 then
+			local a = math.rad(i * 45)
+			Props.lamp(CFrame.new(math.cos(a) * (R - 4), PLAZA_TOP, math.sin(a) * (R - 4)), decor, 11)
+		end
 	end
 	local planterColors = {
 		Color3.fromRGB(255, 120, 160),

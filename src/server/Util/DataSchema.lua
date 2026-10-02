@@ -36,6 +36,8 @@ function DataSchema.template(): PlayerData
 		funnel = {},
 		settings = { sfx = true, labels = true },
 		tutorialStep = 1,
+		arenaWins = 0,
+		arenaBattles = 0,
 	}
 end
 
@@ -64,6 +66,8 @@ function DataSchema.migrate(raw: { [string]: any }): PlayerData
 	raw.coins = math.max(0, number(raw.coins, 0))
 	raw.padCoins = math.max(0, number(raw.padCoins, 0))
 	raw.trophies = math.max(0, math.floor(number(raw.trophies, 0)))
+	raw.arenaWins = math.max(0, math.floor(number(raw.arenaWins, 0)))
+	raw.arenaBattles = math.max(raw.arenaWins, math.floor(number(raw.arenaBattles, 0)))
 	raw.tutorialStep = math.clamp(math.floor(number(raw.tutorialStep, 1)), 1, 5)
 	raw.settings.sfx = raw.settings.sfx ~= false
 	raw.settings.labels = raw.settings.labels ~= false
