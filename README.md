@@ -11,7 +11,14 @@ synced into Studio with [Rojo](https://rojo.space).
 
 ## Status
 
-Milestones 0 (project setup) and 1 (core loop: buy eggs, hatch, grow, earn, collect) are done.
+Done so far:
+
+- Milestone 0: project setup.
+- Milestone 1: the core loop (buy eggs, hatch, grow, earn, collect).
+- Milestone 2: saving.
+- Milestone 3: night raids and PvP.
+- Milestone 4: menus, tutorial and sounds.
+
 See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
 
 ## Getting started
@@ -64,15 +71,18 @@ src/
   server/                 -> ServerScriptService
     Main.server.lua       bootstrap: remotes, then init/start each service in order
     Services/             DataService, MapService, BaseService, CreatureService,
-                          GrowthService, IncomeService, ConveyorService
+                          GrowthService, IncomeService, ConveyorService, CycleService,
+                          RaidService, CombatService, TrapService, TutorialService
     Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter,
                           Ticker (the single server heartbeat), Character (distance checks)
     World/                MapBuilder (lobby, conveyor, 8 bases), Props (trees, lamps, signs)
   client/                 -> StarterPlayer.StarterPlayerScripts
     Main.client.lua       bootstrap for controllers
-    Controllers/          HudController, BaseController, GalleryController, CreatureController,
-                          PromptController, ConveyorController
-    UI/Theme.lua          colors, fonts, mobile scaling
+    Controllers/          one per feature (HUD, creatures, conveyor, cycle, shields, raids,
+                          combat, menu, sound, tutorial)
+    UI/                   Theme, Widgets, Window, Popup, Banner, Effects, Sounds
+    Screens/              Shop, Inventory, Index, Settings windows
+    State/                client-side state: profile summary, settings, raid rules
 tests/run.luau            headless tests (Lune)
 tools/preview/            renders models to PNG outside Studio (Lune + three.js)
 tools/check.sh            runs every automated check

@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.5.0] - Milestone 4: UI and onboarding
+
+### Added
+- Menu buttons down the left edge (Shop, Inventory, Index, Settings), at least 44 px on phones.
+  One window is open at a time (`Window`), built from shared touch-sized `Widgets`.
+- Shop:
+  - Eggs tab: the odds for each rarity. Eggs are still bought on the conveyor, where you
+    always see what is inside.
+  - Base tab: unlock the next pedestal through the new `BuyPedestal` remote, which uses the
+    same server code as the in-world Unlock prompt (`BaseService.buyPedestal`).
+  - Traps tab: buy traps, with what each one does.
+- Inventory: every creature in your base with a 3D preview, slot, stage, income and sell price. Lock one
+  creature, or sell any of them after a confirmation popup. Selling uses the validated
+  `SellCreature` remote and `CreatureService.sell`, which share the checks with the F prompt.
+- Index: all 21 creatures. Ones you have owned are in full color; the rest are silhouettes.
+  It has a hook (`Index.extraEntries`) for the hybrids coming in Milestone 5.
+- Settings: sound effects and creature labels on or off. They are saved to your profile
+  through the rate-limited `SaveSettings` remote, and labels hide or show instantly.
+- Sounds (`Config.Sounds`, `SoundController`): buying, hatching, growing up, collecting,
+  stealing, thefts, bonks, traps, nightfall and sunrise. They play only on your own client,
+  and 3D sounds play where the event happened. The ids are built-in placeholders until you
+  upload your own.
+- Tutorial (`TutorialService` and `TutorialController`): buy an egg, watch it hatch, collect
+  coins, then a short note about night raids. The server advances each step when you
+  actually do it, and the step is saved. The client shows a hint card, a spinning arrow over
+  the target and a guide beam. Returning players who already own creatures skip ahead.
+- `GetProfile` remote for menus: discoveries, pedestals, traps and settings.
+- Save data: `settings` and `tutorialStep`, repaired by the migration. Tests cover both.
+
 ## [0.4.0] - Milestone 3: night and PvP
 
 ### Added
