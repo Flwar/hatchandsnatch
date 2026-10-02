@@ -2129,13 +2129,162 @@ ART.Sushirrito = {
 -- Eggs and baby shells
 ---------------------------------------------------------------------------
 
--- What a creature is built from: its own art, or (fallback hybrids) a lead and a donor.
-type Plan = { art: Art, donor: Art? }
+---------------------------------------------------------------------------
+-- Weather mutations: new colors for the whole palette plus a material finish.
+-- Faces (eyes, mouths, cheeks) keep their normal look so creatures stay readable.
+---------------------------------------------------------------------------
 
-local function planFor(def: CreatureData.CreatureDef): Plan
+local GOLD_DARK, GOLD_LIGHT = Color3.fromRGB(164, 96, 8), Color3.fromRGB(255, 214, 72)
+local ICE_DARK, ICE_LIGHT = Color3.fromRGB(96, 150, 214), Color3.fromRGB(226, 244, 255)
+local ELECTRIC_DARK, ELECTRIC_LIGHT = Color3.fromRGB(30, 40, 120), Color3.fromRGB(110, 232, 255)
+local FACE_PARTS = { "Eye", "Pupil", "Shine", "Sparkle", "Mouth", "Tongue", "Teeth", "Fang", "Cheek" }
+
+local function luminance(c: Color3): number
+	return 0.299 * c.R + 0.587 * c.G + 0.114 * c.B
+end
+
+-- A mutated copy of a palette (or the palette itself without a mutation). Keys are
+-- visited in sorted order, so a Rainbow creature always gets the same stripes of hue.
+function CreatureModels.mutatePalette(palette: Palette, mutation: string?): Palette
+	if mutation == nil then
+		return palette
+	end
+	local keys = {}
+	for key in palette do
+		table.insert(keys, key)
+	end
+	table.sort(keys)
+	local out: Palette = {}
+	for i, key in keys do
+		local color = palette[key]
+		local _, s, v = color:ToHSV()
+		local light = luminance(color)
+		if mutation == "Golden" then
+			out[key] = GOLD_DARK:Lerp(GOLD_LIGHT, math.clamp((light - 0.15) / 0.75, 0, 1))
+		elseif mutation == "Electric" then
+			out[key] = ELECTRIC_DARK:Lerp(ELECTRIC_LIGHT, math.clamp((light - 0.1) / 0.7, 0, 1))
+		elseif mutation == "Frozen" then
+			out[key] = ICE_DARK:Lerp(ICE_LIGHT, math.clamp((light - 0.1) / 0.7, 0, 1))
+		elseif mutation == "Rainbow" then
+			out[key] = Color3.fromHSV((i - 1) / #keys, math.max(s, 0.65), math.max(v, 0.78))
+		else
+			out[key] = color
+		end
+	end
+	return out
+end
+
+local function isFacePart(name: string): boolean
+	for _, prefix in FACE_PARTS do
+		if string.sub(name, 1, #prefix) == prefix then
+			return true
+		end
+	end
+	return false
+end
+
+-- Shiny gold, frosty ice, a little sheen for Electric and Rainbow.
+local function finishMutation(parts: { BasePart }, mutation: string?)
+	if mutation == nil then
+		return
+	end
+	for _, part in parts do
+		local material = part.Material
+		if isFacePart(part.Name) or material == Enum.Material.Neon or material == Enum.Material.Glass then
+			continue
+		end
+		if mutation == "Golden" then
+			part.Material = Enum.Material.SmoothPlastic
+			part.Reflectance = 0.3
+		elseif mutation == "Frozen" then
+			part.Material = Enum.Material.Ice
+		else
+			part.Reflectance = math.max(part.Reflectance, 0.12)
+		end
+	end
+end
+
+-- A small piece that makes each mutation readable at a glance, sized to the creature:
+-- a golden halo, two neon lightning bolts, ice crystals, or a little rainbow arc.
+local function decorateMutation(model: Model, parts: { BasePart }, origin: CFrame, mutation: string?)
+	if mutation == nil or #parts == 0 then
+		return
+	end
+	local boxCf, boxSize = ModelKit.bounds(parts, origin)
+	local center = origin:PointToObjectSpace(boxCf.Position)
+	local width = math.max(math.min(boxSize.X, boxSize.Z), 1)
+	local k = math.clamp(width / 3.5, 0.35, 1.4) -- piece size relative to an average adult
+	local top = center.Y + boxSize.Y / 2
+	local rig = ModelKit.newRig(model, origin, 1, {})
+	local neon = { material = Enum.Material.Neon, castShadow = false }
+	if mutation == "Golden" then
+		local radius = 0.75 * k
+		for i = 0, 7 do
+			local a = i * math.pi / 4
+			rig.ball(
+				"MutationHalo",
+				0.3 * k,
+				v3(center.X + math.cos(a) * radius, top + 0.45 * k, center.Z + math.sin(a) * radius),
+				Color3.fromRGB(255, 220, 90),
+				neon
+			)
+		end
+	elseif mutation == "Electric" then
+		local yellow = Color3.fromRGB(255, 238, 90)
+		for side = -1, 1, 2 do
+			-- Beside the creature, but never past the edge of a pedestal.
+			local x = center.X + side * math.min(boxSize.X / 2 + 0.35 * k, 4.1)
+			local y = center.Y + boxSize.Y * 0.2
+			local points = {
+				v3(x, y + 0.7 * k, center.Z),
+				v3(x + side * 0.3 * k, y + 0.1 * k, center.Z),
+				v3(x - side * 0.05 * k, y + 0.05 * k, center.Z),
+				v3(x + side * 0.25 * k, y - 0.6 * k, center.Z),
+			}
+			for i = 1, 3 do
+				rig.rod("MutationBolt", points[i], points[i + 1], 0.16 * k, yellow, neon)
+			end
+		end
+	elseif mutation == "Frozen" then
+		local ice = { material = Enum.Material.Glass, transparency = 0.25, reflectance = 0.2 }
+		for i, spec in
+			{ { x = -0.32, tilt = 22, h = 0.9 }, { x = 0.05, tilt = -6, h = 1.2 }, { x = 0.36, tilt = -26, h = 0.75 } }
+		do
+			rig.block(
+				`MutationIce{i}`,
+				v3(0.32, spec.h, 0.32) * k,
+				CFrame.new(center.X + spec.x * width * 0.55, top + spec.h * 0.3 * k - 0.1, center.Z + 0.15 * k)
+					* CFrame.Angles(0, math.rad(45), math.rad(spec.tilt)),
+				Color3.fromRGB(190, 236, 255),
+				ice
+			)
+		end
+	elseif mutation == "Rainbow" then
+		local bands = { Color3.fromRGB(255, 96, 96), Color3.fromRGB(255, 220, 80), Color3.fromRGB(96, 190, 255) }
+		local radius = 0.85 * k
+		for band, color in bands do
+			local r = radius - (band - 1) * 0.2 * k
+			for i = 0, 4 do
+				local a0, a1 = i * math.pi / 5, (i + 1) * math.pi / 5
+				local p0 = v3(center.X + math.cos(a0) * r, top + 0.1 * k + math.sin(a0) * r, center.Z + 0.2 * k)
+				local p1 = v3(center.X + math.cos(a1) * r, top + 0.1 * k + math.sin(a1) * r, center.Z + 0.2 * k)
+				rig.rod("MutationRainbow", p0, p1, 0.2 * k, color, neon)
+			end
+		end
+	end
+	for _, part in rig.parts do
+		table.insert(parts, part)
+	end
+end
+
+-- What a creature is built from: its own art, or (fallback hybrids) a lead and a donor,
+-- with the palettes the model is painted with (mutated when it has a mutation).
+type Plan = { art: Art, donor: Art?, palette: Palette, donorPalette: Palette? }
+
+local function planFor(def: CreatureData.CreatureDef, mutation: string?): Plan
 	local art = ART[def.modelName]
 	if art then
-		return { art = art }
+		return { art = art, palette = CreatureModels.mutatePalette(art.palette, mutation) }
 	end
 	local parents = def.parents
 	assert(def.hybrid and parents, `CreatureModels: no art for "{def.modelName}"`)
@@ -2143,14 +2292,19 @@ local function planFor(def: CreatureData.CreatureDef): Plan
 	assert(lead and donor, `CreatureModels: hybrid "{def.id}" has unknown parents`)
 	local leadArt, donorArt = ART[lead.modelName], ART[donor.modelName]
 	assert(leadArt and donorArt, `CreatureModels: no art for the parents of "{def.id}"`)
-	return { art = leadArt, donor = donorArt }
+	return {
+		art = leadArt,
+		donor = donorArt,
+		palette = CreatureModels.mutatePalette(leadArt.palette, mutation),
+		donorPalette = CreatureModels.mutatePalette(donorArt.palette, mutation),
+	}
 end
 
 -- Egg shell colors. Hybrid eggs use the lead's shell with the donor's spots.
 local function eggColors(plan: Plan): (Color3, Color3)
-	local palette = plan.art.palette
+	local palette = plan.palette
 	local base = palette.Egg or palette.Primary or Color3.fromRGB(240, 240, 240)
-	local spotPalette = if plan.donor then plan.donor.palette else palette
+	local spotPalette = plan.donorPalette or palette
 	local spot = spotPalette.Accent or spotPalette.Secondary or ModelKit.shade(base, 0.7)
 	return base, spot
 end
@@ -2237,7 +2391,7 @@ local function buildCreature(rig: Rig, plan: Plan)
 	assert(anchor, `CreatureModels: lead has no {trait.slot} anchor`)
 	plan.art.build(rig, { [trait.slot] = true })
 	local scale = math.clamp(anchor.size / trait.size, 0.45, 1.5)
-	trait.build(rig.sub(anchor.at, scale, donor.palette, trait.at:Inverse()))
+	trait.build(rig.sub(anchor.at, scale, plan.donorPalette or donor.palette, trait.at:Inverse()))
 end
 
 ---------------------------------------------------------------------------
@@ -2256,9 +2410,10 @@ end
 function CreatureModels.build(creatureId: string, options: BuildOptions?): Model
 	local def = CreatureData.get(creatureId)
 	assert(def, `CreatureModels.build: unknown creature "{creatureId}"`)
-	local plan = planFor(def)
-	local art = plan.art
 	local opts: BuildOptions = options or {}
+	local plan = planFor(def, opts.mutation)
+	local art = plan.art
+	local palette = plan.palette
 	local stage: Stage = opts.stage or "Adult"
 	local origin = opts.origin or CFrame.new()
 	local scale = opts.scale or 1
@@ -2271,26 +2426,30 @@ function CreatureModels.build(creatureId: string, options: BuildOptions?): Model
 
 	local parts: { BasePart } = {}
 	if stage == "Egg" then
-		local rig = ModelKit.newRig(model, origin, scale, art.palette)
+		local rig = ModelKit.newRig(model, origin, scale, palette)
 		buildEgg(rig, def, plan)
 		parts = rig.parts
 	elseif stage == "Baby" then
-		local shellRig = ModelKit.newRig(model, origin, scale, art.palette)
+		local shellRig = ModelKit.newRig(model, origin, scale, palette)
 		buildShell(shellRig, plan)
 		local lift = (art.babyLift or 0.7) * scale
-		local rig =
-			ModelKit.newRig(model, origin * CFrame.new(0, lift, 0), BABY_SCALE * scale, art.palette, BABY_EYE_BOOST)
+		local rig = ModelKit.newRig(model, origin * CFrame.new(0, lift, 0), BABY_SCALE * scale, palette, BABY_EYE_BOOST)
 		buildCreature(rig, plan)
 		parts = shellRig.parts
 		for _, part in rig.parts do
 			table.insert(parts, part)
 		end
 	else
-		local rig = ModelKit.newRig(model, origin, scale, art.palette)
+		local rig = ModelKit.newRig(model, origin, scale, palette)
 		buildCreature(rig, plan)
 		parts = rig.parts
 	end
 
+	finishMutation(parts, opts.mutation)
+	decorateMutation(model, parts, origin, opts.mutation)
+	if opts.mutation then
+		model:SetAttribute("Mutation", opts.mutation)
+	end
 	ModelKit.finishModel(model, parts, origin)
 	return model
 end

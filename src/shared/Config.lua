@@ -125,11 +125,19 @@ Config.DiscoveryTopic = "FirstDiscovery" -- MessagingService topic for cross-ser
 ---------------------------------------------------------------------------
 -- Weather mutations
 ---------------------------------------------------------------------------
-Config.WeatherMinGapSec = 240
+Config.WeatherMinGapSec = 240 -- quiet time between two weather events
 Config.WeatherMaxGapSec = 480
 Config.WeatherMinLengthSec = 60
 Config.WeatherMaxLengthSec = 90
-Config.MutationChancePerTick = 0.02
+Config.WeatherTickSec = 3 -- how often growing creatures roll for a mutation during an event
+-- Each event: how often it is picked (weight), the mutation it gives, and the chance per
+-- tick that one growing creature gets it. Over a 75 s event that is about 1 - (1 - chance)^25.
+Config.WeatherEvents = {
+	GoldenRain = { mutation = "Golden", weight = 4, chance = 0.015 },
+	LightningStorm = { mutation = "Electric", weight = 3, chance = 0.01 },
+	Frost = { mutation = "Frozen", weight = 4, chance = 0.02 },
+	Rainbow = { mutation = "Rainbow", weight = 1, chance = 0.004 },
+}
 Config.MutationMultipliers = {
 	Golden = 2,
 	Electric = 3,
@@ -209,6 +217,8 @@ Config.Sounds = {
 	Day = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.4, pitch = 1.1 },
 	Discovery = { id = "rbxasset://sounds/victory.wav", volume = 0.7, pitch = 1 },
 	Weather = { id = "rbxasset://sounds/victory.wav", volume = 0.5, pitch = 0.75 },
+	Thunder = { id = "rbxasset://sounds/collide.wav", volume = 0.9, pitch = 0.35 },
+	Mutate = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.7, pitch = 1.5 },
 	Warning = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5, pitch = 0.7 },
 }
 
@@ -218,6 +228,7 @@ Config.Sounds = {
 Config.Debug = {
 	ShowCreatureGallery = true, -- a showroom of every creature model in the lobby
 	StartAtNight = false, -- start the server at night (handy for testing raids)
+	FastWeather = false, -- weather every 30-45 s, first one after 15 s (testing mutations)
 }
 
 local function deepFreeze(t: { [any]: any })
