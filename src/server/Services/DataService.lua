@@ -34,6 +34,7 @@ function DataService.template(): PlayerData
 	return {
 		version = Config.DataSchemaVersion,
 		coins = Config.StartingCoins,
+		padCoins = 0,
 		pedestals = Config.StartingPedestals,
 		creatures = {},
 		traps = {},
@@ -60,6 +61,7 @@ function DataService.migrate(raw: { [string]: any }): PlayerData
 	-- if version < 2 then raw.newField = ...; version = 2 end
 	raw.version = math.max(version, Config.DataSchemaVersion)
 	raw.coins = math.max(0, tonumber(raw.coins) or 0)
+	raw.padCoins = math.max(0, tonumber(raw.padCoins) or 0)
 	raw.pedestals = math.clamp(
 		math.floor(tonumber(raw.pedestals) or Config.StartingPedestals),
 		Config.StartingPedestals,

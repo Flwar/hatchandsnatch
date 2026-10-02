@@ -28,6 +28,7 @@ Config.ConveyorSpawnInterval = 4
 Config.ConveyorSpeed = 5 -- studs per second
 Config.ConveyorMaxEggs = 20 -- hard cap on eggs alive on the belt
 Config.EggPromptDistance = 10
+Config.EggPromptHoldSec = 0 -- instant buy; raise it if players mis-buy by accident
 
 -- Weighted odds used when the conveyor rolls a rarity. Relative weights, not percentages.
 Config.RarityWeights = {
@@ -48,6 +49,15 @@ Config.AdultAtFraction = 1.0 -- Baby -> Adult at 100% of growTimeSec
 Config.IncomeTickSec = 1
 Config.OfflineIncomeCapHours = 8
 Config.SellRefundFraction = 0.5 -- selling refunds this fraction of the egg price
+
+---------------------------------------------------------------------------
+-- Base interactions (prompts and the collect pad)
+---------------------------------------------------------------------------
+Config.CreaturePromptDistance = 9
+Config.SellPromptHoldSec = 1
+Config.UnlockPromptHoldSec = 0.5
+Config.CollectPadReach = 10 -- max distance from the pad centre for a valid collect
+Config.ActionDistanceSlack = 4 -- extra studs allowed on server distance checks (lag)
 
 ---------------------------------------------------------------------------
 -- Day / night
@@ -130,6 +140,10 @@ Config.DataSchemaVersion = 1
 Config.DefaultRateLimit = { rate = 4, burst = 8 }
 Config.RateLimits = {
 	ClientReady = { rate = 0.2, burst = 2 },
+	BuyEgg = { rate = 3, burst = 4 },
+	SellCreature = { rate = 2, burst = 3 },
+	UnlockPedestal = { rate = 1, burst = 2 },
+	CollectPad = { rate = 2, burst = 3 },
 }
 
 ---------------------------------------------------------------------------

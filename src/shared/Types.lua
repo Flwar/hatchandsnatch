@@ -19,6 +19,7 @@ export type CreatureRecord = {
 export type PlayerData = {
 	version: number,
 	coins: number,
+	padCoins: number, -- income waiting on the collect pad
 	pedestals: number,
 	creatures: { CreatureRecord },
 	traps: { string },
