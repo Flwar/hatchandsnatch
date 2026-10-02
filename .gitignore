@@ -1,0 +1,15 @@
+# Build outputs
+/build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+!/assets/**/*.rbxm
+!/assets/**/*.rbxmx
+sourcemap.json
+
+# Tooling
+/tools/preview/node_modules/
+/tools/preview/out/
+roblox.yml
+.DS_Store
