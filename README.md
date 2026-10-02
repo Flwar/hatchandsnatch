@@ -6,6 +6,15 @@ out of yours).
 
 ![All 21 creatures](docs/images/sheet-adult.png)
 
+Fuse two creatures into a hybrid. Eight secret recipes have their own hand-made look:
+
+![Named recipe hybrids](docs/images/recipes.png)
+
+Every other pair makes a fallback hybrid. It has the rarer parent's body plus the other
+parent's signature piece:
+
+![Fallback hybrids](docs/images/hybrids.png)
+
 The repository is the source of truth. Every script, and every model, lives here as code and is
 synced into Studio with [Rojo](https://rojo.space).
 
@@ -18,6 +27,7 @@ Done so far:
 - Milestone 2: saving.
 - Milestone 3: night raids and PvP.
 - Milestone 4: menus, tutorial and sounds.
+- Milestone 5: the Fusion Machine, hybrids and the Index.
 
 See [CHANGELOG.md](CHANGELOG.md) for what each milestone adds.
 
@@ -61,28 +71,30 @@ src/
     Growth.lua            growth stage math from plantedAt timestamps
     Economy.lua           prices and income formulas (pedestal cost, sell value, income/s)
     Tags.lua              CollectionService tag names
-    CreatureData.lua      the 21 creatures: id, rarity, income, grow time, price, tags
+    CreatureData.lua      the 21 creatures plus hybrid lookup (named recipes and fallbacks)
+    FusionRecipes.lua     named fusion recipes: pairs of creatures -> hand-made hybrids
     Types.lua             PlayerData / CreatureRecord shapes
     Util/Format.lua       1.2K / 3.4M number formatting, timers
     Util/Signal.lua       tiny event object for service-to-service events
     Models/ModelKit.lua   primitives, rig and face helpers used by every model
-    Models/CreatureModels.lua  every creature's Egg / Baby / Adult model
+    Models/CreatureModels.lua  every creature's Egg / Baby / Adult model, hybrids included
     Models/Gallery.lua    the dev creature showroom layout
   server/                 -> ServerScriptService
     Main.server.lua       bootstrap: remotes, then init/start each service in order
     Services/             DataService, MapService, BaseService, CreatureService,
                           GrowthService, IncomeService, ConveyorService, CycleService,
-                          RaidService, CombatService, TrapService, TutorialService
+                          RaidService, CombatService, TrapService, FusionService,
+                          TutorialService
     Util/                 Net (validated, rate-limited remotes), Guard (validators), RateLimiter,
                           Ticker (the single server heartbeat), Character (distance checks)
-    World/                MapBuilder (lobby, conveyor, 8 bases), Props (trees, lamps, signs)
+    World/                MapBuilder (lobby, conveyor, 8 bases), FusionMachine, Props
   client/                 -> StarterPlayer.StarterPlayerScripts
     Main.client.lua       bootstrap for controllers
     Controllers/          one per feature (HUD, creatures, conveyor, cycle, shields, raids,
-                          combat, menu, sound, tutorial)
+                          combat, menu, fusion, sound, tutorial)
     UI/                   Theme, Widgets, Window, Popup, Banner, Effects, Sounds
-    Screens/              Shop, Inventory, Index, Settings windows
-    State/                client-side state: profile summary, settings, raid rules
+    Screens/              Shop, Inventory, Index, Fusion, Settings windows
+    State/                client-side state: profile summary, settings, raid rules, your creatures
 tests/run.luau            headless tests (Lune)
 tools/preview/            renders models to PNG outside Studio (Lune + three.js)
 tools/check.sh            runs every automated check
@@ -126,9 +138,19 @@ checks the code as you edit, using Rojo's sourcemap.
 lune run tools/preview/export.luau creatures blobbit toastshark   # or no ids for all
 lune run tools/preview/export.luau sheets                         # every creature on one sheet
 lune run tools/preview/export.luau map                            # lobby, a furnished base, whole map
+lune run tools/preview/export.luau recipes                        # the named recipe hybrids
+lune run tools/preview/export.luau hybrids [creatureId ...]       # fallback hybrids, 20 per sheet
+lune run tools/preview/export.luau machine blobbit toastshark     # the Fusion Machine mid-fusion
 cd tools/preview && npm install && node render.mjs                # renders out/*.json to out/*.png
 lune run tools/preview/export.luau rbxm                           # build/Creatures.rbxm to drag into Studio
 ```
+
+## Fusion and first discoveries
+
+First discoveries are saved in the global DataStore named in `Config.DiscoveryStoreName`.
+They are announced to other servers on the MessagingService topic `Config.DiscoveryTopic`.
+In Studio, turn on **Game Settings → Security → Enable Studio Access to API Services** to
+test them for real. Without it, each server remembers its own first discoveries.
 
 ## Turning things off before publishing
 

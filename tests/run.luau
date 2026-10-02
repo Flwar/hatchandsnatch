@@ -395,6 +395,62 @@ test("Map has a lobby, conveyor markers and every base fully built", function()
 	end
 end)
 
+test("Every base has a Fusion Machine clear of the pedestals and walls", function()
+	local workspace = roblox.Instance.new("Folder")
+	local map = MapBuilder.build(workspace)
+	for _, base in map:FindFirstChild("Bases"):GetChildren() do
+		local machine = base:FindFirstChild("FusionMachine")
+		expect(machine, `{base.Name} has no FusionMachine`)
+		eq(machine:GetAttribute("State"), "Idle", "machines start idle")
+		for _, path in
+			{
+				{ "PodL", "Socket" },
+				{ "PodR", "Socket" },
+				{ "Reactor", "ResultSocket" },
+				{ "Reactor", "Core" },
+				{ "Panel" },
+			}
+		do
+			local node = machine
+			for _, name in path do
+				node = node and node:FindFirstChild(name)
+			end
+			expect(node and node:IsA("BasePart"), `{base.Name} machine missing {table.concat(path, ".")}`)
+		end
+		local status = machine:FindFirstChild("Reactor"):FindFirstChild("Beacon"):FindFirstChild("StatusGui")
+		expect(status and status:FindFirstChild("Status"), `{base.Name} machine missing its status label`)
+		-- Footprint in base space: behind the last pedestal row, inside the back wall.
+		local frame = base:GetAttribute("BaseCFrame")
+		local minZ, maxZ, maxX = math.huge, -math.huge, 0
+		for _, part in machine:GetDescendants() do
+			if part:IsA("BasePart") and part.Transparency < 1 then
+				local half = part.Size / 2
+				for _, corner in
+					{
+						roblox.Vector3.new(1, 1, 1),
+						roblox.Vector3.new(-1, 1, 1),
+						roblox.Vector3.new(1, -1, -1),
+						roblox.Vector3.new(-1, -1, -1),
+						roblox.Vector3.new(1, 1, -1),
+						roblox.Vector3.new(-1, 1, -1),
+						roblox.Vector3.new(1, -1, 1),
+						roblox.Vector3.new(-1, -1, 1),
+					}
+				do
+					local p = frame:PointToObjectSpace(part.CFrame * (half * corner))
+					minZ = math.min(minZ, p.Z)
+					maxZ = math.max(maxZ, p.Z)
+					maxX = math.max(maxX, math.abs(p.X))
+				end
+			end
+		end
+		local lastRow = MapBuilder.pedestalOffset(Config.MaxPedestals).Z + Config.Map.PedestalDiameter / 2
+		expect(minZ > lastRow + 2.5, `{base.Name} machine crowds the pedestals ({minZ} vs {lastRow})`)
+		expect(maxZ < Config.Map.BaseSize / 2 - 1.6, `{base.Name} machine pokes through the back wall ({maxZ})`)
+		expect(maxX < Config.Map.BaseSize / 2 - 4, `{base.Name} machine is too wide ({maxX})`)
+	end
+end)
+
 test("Bases do not overlap each other or the lobby", function()
 	local half = Config.Map.BaseSize / 2
 	local corner = math.sqrt(2) * half
@@ -624,6 +680,27 @@ test("DataSchema template and migration repair old or broken saves", function()
 	eq(settings.settings.labels, true, "missing settings default on")
 	eq(settings.tutorialStep, 5, "tutorial step clamps to done")
 	eq(DataSchema.migrate({ settings = "bad" }).settings.sfx, true, "broken settings are replaced")
+end)
+
+test("DataSchema keeps a fusion in progress and never loses its parents", function()
+	local parent = function(uid: string)
+		return { uid = uid, id = "blobbit", plantedAt = 10, slot = 3, locked = true }
+	end
+	local whole = DataSchema.migrate({
+		fusion = { parents = { parent("a"), parent("b") }, resultId = "jellydonut", endsAt = 99 },
+	})
+	expect(whole.fusion and #whole.fusion.parents == 2, "a whole fusion job is kept")
+	eq(#whole.creatures, 0, "parents stay in the machine")
+	local broken = DataSchema.migrate({
+		creatures = {},
+		fusion = { parents = { parent("a"), parent("b") }, resultId = 5 },
+	})
+	eq(broken.fusion, nil, "a broken job is dropped")
+	eq(#broken.creatures, 2, "its parents go back to the base")
+	eq(broken.creatures[1].slot, 0, "returned parents get a fresh pedestal")
+	eq(DataSchema.migrate({ fusion = "garbage" }).fusion, nil, "garbage jobs are dropped")
+	local fresh = DataSchema.template()
+	eq(fresh.fusion, nil, "new players have no fusion running")
 end)
 
 ---------------------------------------------------------------------------

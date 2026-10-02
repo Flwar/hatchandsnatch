@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.6.0] - Milestone 5: fusion and the Index
+
+### Added
+- A Fusion Machine in every base (`World/FusionMachine`) along the back wall. It has two
+  glass pods, pipes into a glass reactor dome, a control desk, a "FUSION LAB" sign, and a
+  floating status ("Fusing... 0:42"). The reactor core pulses and shifts color while fusing.
+- Fusing (`FusionService`, the `StartFusion` remote, the Fusion window):
+  - Pick two of your adult originals that are standing on your pedestals, see what they
+    make, and send them into the machine.
+  - After `Config.FusionTimeSec` the hybrid is born as an adult on a free pedestal. With
+    no free pedestal it waits in the machine.
+  - The server re-checks ownership, the distance to the machine, the adult stage, that
+    both are originals, and that the machine is free.
+  - The job is saved with both parents. Leaving or a shutdown loses nothing, and the timer
+    keeps running offline.
+  - A hybrid keeps a mutation only when both parents share it.
+  - `FusionService.durationFor` is ready for the "faster fusion" pass.
+- Named recipes (`FusionRecipes`): eight hand-made hybrids with their own models.
+  - Jelly Donut, Cactortoise, Boogie Knight, Mothball, Magmutt, Brunchasaurus, Goose.exe
+    and Sushirrito.
+  - They earn (a + b) x `Config.FusionRecipeBonus` and range from Rare to Secret.
+- Fallback hybrids for the other 202 pairs, with the id `fusion:<lead>+<donor>`.
+  - The rarer parent leads. It gives the body and the start of the name; the donor gives
+    its signature piece and the end of the name: Toastshark + Blobbit = "Toastbit".
+  - Rarity is the lead's tier + 1, never into Secret without a Secret parent. Income is
+    (a + b) x `Config.FusionBonus`.
+  - A hybrid is worth exactly its parents, so fusing never creates coins through selling.
+  - Hybrids can't be fused again.
+- Hybrid models:
+  - Every original now has a signature trait for its Head, Back or Face slot (ears, hats,
+    caps, clouds, wings, an envelope, cushion plates, neon shades, ...) and anchors where
+    pieces from others attach.
+  - A fallback hybrid is the lead's body with the donor's piece on the matching anchor,
+    resized to fit and in the donor's colors. Whatever sat there on the lead is left out.
+  - The 21 originals still build exactly the same geometry as before (checked part by part).
+- First discoveries:
+  - The first time anyone makes a named recipe, it is claimed in a global DataStore with
+    an atomic `UpdateAsync`.
+  - It is announced with a "FIRST DISCOVERY!" banner on this server and, through
+    MessagingService, on every other server.
+  - Without API access (Studio) claims fall back to the current server.
+- A reveal popup with the new hybrid turning in 3D (`Popup` now takes a `creatureId`).
+- Index sections:
+  - Creatures (21 originals).
+  - Secret recipes: silhouettes until fused, with who found each one first.
+  - Your hybrids.
+- `MyCreatures` client state, shared by the Inventory and Fusion windows.
+- `CreatureModels.build` takes a `scale` (the machine shows small parents and results).
+- Previews: `export.luau hybrids`, `recipes`, `machine` and `hybridsample`.
+- Tests:
+  - every named and fallback hybrid at every stage;
+  - fusion rules, names and rarity;
+  - coin neutrality;
+  - saving a fusion in progress;
+  - the machine's placement in every base.
+
 ## [0.5.0] - Milestone 4: UI and onboarding
 
 ### Added

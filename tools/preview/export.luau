@@ -6,6 +6,7 @@
 	  lune run tools/preview/export.luau creatures [creatureId ...]
 	  lune run tools/preview/export.luau hybrids [creatureId ...]
 	  lune run tools/preview/export.luau recipes
+	  lune run tools/preview/export.luau machine [creatureA creatureB]
 	  lune run tools/preview/export.luau map
 	  lune run tools/preview/export.luau rbxm      -- writes build/Creatures.rbxm for Studio
 
@@ -127,6 +128,8 @@ elseif mode == "map" then
 		{ "pebblepup", "Egg" },
 		{ "croissaur", "Adult" },
 		{ "toastshark", "Adult" },
+		{ "jellydonut", "Adult" },
+		{ "fusion:volcanowl+bumblebun", "Adult" },
 	}
 	for slot, entry in showcase do
 		local pedestal = base:FindFirstChild("Pedestals"):FindFirstChild(`Pedestal{slot}`)
@@ -201,6 +204,33 @@ elseif mode == "hybrids" then
 		writeScene(`hybrids-{page}`, { title = `Fallback hybrids {page}`, kind = "gallery", models = models })
 	end
 	print(`{#ids} fallback hybrids on {page} sheets`)
+elseif mode == "hybridsample" then
+	-- A hand-picked sheet of fallback hybrids for the docs.
+	local CreatureData = Loader.require("src/shared/CreatureData")
+	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")
+	local pairs = {
+		{ "toastshark", "blobbit" },
+		{ "gloomshroom", "pebblepup" },
+		{ "volcanowl", "discododo" },
+		{ "cosmigoose", "jellyknight" },
+		{ "burritoad", "bumblebun" },
+		{ "glitchling", "waddlecake" },
+		{ "sofasaurus", "moonmoth" },
+		{ "croissaur", "thunderdumpling" },
+		{ "dragonroll", "gloomshroom" },
+		{ "snailmail", "fizzhopper" },
+		{ "moonmoth", "snailmail" },
+		{ "jellyknight", "cactopus" },
+	}
+	local origin = roblox.CFrame.new()
+	local models = {}
+	for _, pair in pairs do
+		local id = CreatureData.fuse(pair[1], pair[2])
+		local def = CreatureData.get(id)
+		local model = CreatureModels.build(id, { stage = "Adult", origin = origin })
+		table.insert(models, { label = `{def.displayName} - {def.rarity}`, parts = exportParts(model, origin) })
+	end
+	writeScene("hybrid-sample", { title = "Fallback hybrids (sample)", kind = "gallery", models = models })
 elseif mode == "recipes" then
 	-- Every named recipe hybrid at every stage.
 	local CreatureData = Loader.require("src/shared/CreatureData")
@@ -223,6 +253,31 @@ elseif mode == "recipes" then
 		)
 	end
 	writeScene("recipes", { title = "Named recipe hybrids", kind = "gallery", models = models })
+elseif mode == "machine" then
+	-- The Fusion Machine mid-fusion: two parents in the pods and the hybrid in the dome.
+	local FusionMachine = Loader.require("src/server/World/FusionMachine")
+	local CreatureData = Loader.require("src/shared/CreatureData")
+	local CreatureModels = Loader.require("src/shared/Models/CreatureModels")
+	local folder = roblox.Instance.new("Folder")
+	local origin = roblox.CFrame.new()
+	local machine = FusionMachine.build(origin, roblox.Color3.fromRGB(88, 156, 255), folder)
+	local a, b = process.args[2] or "blobbit", process.args[3] or "toastshark"
+	for i, id in { a, b } do
+		local pod = machine:FindFirstChild(if i == 1 then "PodL" else "PodR")
+		local socket = pod:FindFirstChild("Socket")
+		CreatureModels.build(id, { origin = socket.CFrame * roblox.CFrame.new(0, 0.1, 0), scale = 0.5 }).Parent =
+			machine
+	end
+	local result = CreatureData.fuse(a, b)
+	local socket = machine:FindFirstChild("Reactor"):FindFirstChild("ResultSocket")
+	CreatureModels.build(result, { origin = socket.CFrame * roblox.CFrame.new(0, 0.1, 0), scale = 0.55 }).Parent =
+		machine
+	writeScene("machine", {
+		title = `Fusion Machine: {a} + {b} = {CreatureData.get(result).displayName}`,
+		kind = "creature",
+		models = { { label = "Machine", parts = exportParts(machine, origin), count = countParts(machine) } },
+	})
+	print(`machine: {countParts(machine)} parts`)
 elseif mode == "traps" then
 	local TrapModels = Loader.require("src/shared/Models/TrapModels")
 	local models = {}
